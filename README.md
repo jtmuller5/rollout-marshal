@@ -155,36 +155,48 @@ directory.
 
 ## Architecture
 
-Boxes with a coloured fill run on Google Cloud. White boxes are outside it; the dashed one
-is not built yet.
+The diagram draws what has run, not what is planned. The three groups say where a box is:
+inside the container, on Google Cloud, or designed and not yet deployed. Every **dashed**
+box is in that last group — the project has no billing account, so Cloud Run, Cloud
+Scheduler and Secret Manager refuse to enable on it (the Status list above, and
+`notes/deploy.md`). Today the container is started by hand and the tick is an HTTP POST.
 
 ```mermaid
 flowchart TB
-  subgraph GCP["Google Cloud — project rollout-marshal"]
+  subgraph SVC["marshal — one container, run by hand today"]
     direction LR
-    SCH["Cloud Scheduler<br/>every 10 min · one job per app"]
-    subgraph RUN["Cloud Run service · marshal"]
-      direction TB
-      ADK["ADK agent — Rollout Marshal<br/>Gemini 3.5 Flash · Gemini API"]
-      GATE["Policy gate<br/>deterministic Python"]
-      TOOLS["ADK FunctionTools<br/>play_state · crash_free · policy<br/>widen · halt · patch · notify"]
-      ADK -->|"proposes one action"| GATE
-      GATE -.->|"refused + reason"| ADK
-      GATE -->|"allowed"| TOOLS
-      TOOLS -->|"tool results"| ADK
-    end
-    FS[("Firestore<br/>policies · rollouts · decisions")]
-    SM["Secret Manager<br/>Play key · Sentry token"]
-    SCH -->|"POST /tick"| ADK
-    TOOLS <--> FS
-    RUN --> SM
+    ADK["ADK agent — Rollout Marshal<br/>Gemini 3.5 Flash"]
+    GATE["Policy gate<br/>deterministic Python"]
+    TOOLS["ADK FunctionTools<br/>play_state · crash_free · policy<br/>widen · halt · patch · notify"]
+    ADK -->|"proposes one action"| GATE
+    GATE -.->|"refused + reason"| ADK
+    GATE -->|"allowed"| TOOLS
+    TOOLS -->|"tool results"| ADK
   end
 
+  subgraph GCP["Google Cloud — called by every tick that has run"]
+    direction LR
+    GEM["Gemini API<br/>gemini-3.5-flash"]
+    FS[("Firestore<br/>policies · rollouts · decisions")]
+  end
+
+  subgraph TODO["Designed, not deployed — the project has no billing account"]
+    direction LR
+    SCH["Cloud Scheduler<br/>every 10 min · one job per app"]
+    CRUN["Cloud Run<br/>would host this container"]
+    SM["Secret Manager<br/>today the keys are environment variables"]
+  end
+
+  TICK["POST /tick<br/>by hand, or demo/run_demo.sh"]
   PLAY["Play Developer API v3<br/>edits.tracks get · patch · commit"]
   SENTRY["Sentry release health<br/>crash-free rate + sessions"]
   SB["Shorebird · not built<br/>Dart-only patch"]
   MAIL["Email to the human"]
 
+  TICK -->|"the heartbeat today"| ADK
+  SCH -.->|"the heartbeat once deployed"| ADK
+  ADK <--> GEM
+  TOOLS <--> FS
   TOOLS <-->|"read state · write userFraction"| PLAY
   TOOLS --> SENTRY
   TOOLS -.->|"hotfix"| SB
@@ -192,21 +204,24 @@ flowchart TB
 
   classDef ext fill:#ffffff,stroke:#777;
   classDef todo fill:#ffffff,stroke:#777,stroke-dasharray:4 3;
-  class PLAY,SENTRY,MAIL ext;
-  class SB todo;
+  class PLAY,SENTRY,MAIL,TICK ext;
+  class SB,SCH,CRUN,SM todo;
 ```
 
 ### What runs where
 
-| Component | Where it runs | What it is responsible for |
-|---|---|---|
-| Cloud Scheduler | Google Cloud | The heartbeat. One job per watched app, so a wedged app cannot stall the others. |
-| `marshal` service | Cloud Run (scale to zero) | Holds the agent, the tools and the gate. Stateless: every fact it uses comes from Firestore or an upstream API on the tick it runs. |
-| ADK agent | Inside the service | Reads the evidence, states the halt number, states the measured rate, and proposes exactly one action per tick with the reasoning attached. |
-| Policy gate | Inside the service, plain Python | Re-checks the preconditions itself before any irreversible call. The model never reaches the Play API directly. |
-| Firestore | Google Cloud | The pre-declared policy per app, the current rollout state, and an append-only decision log that is also the audit trail. |
-| Secret Manager | Google Cloud | The Play service-account key and the Sentry token. Nothing lands in the image. |
-| Cloud Build → Artifact Registry | Google Cloud | Builds and stores the container the service runs. Left out of the diagram because it is the deploy path, not the run path. |
+| Component | Where it runs | Deployed? | What it is responsible for |
+|---|---|---|---|
+| `marshal` service | One container, started by hand | Runs, off Cloud Run | Holds the agent, the tools and the gate. Stateless: every fact it uses comes from Firestore or an upstream API on the tick it runs. |
+| ADK agent | Inside the service | Runs | Reads the evidence, states the halt number, states the measured rate, and proposes exactly one action per tick with the reasoning attached. |
+| Policy gate | Inside the service, plain Python | Runs | Re-checks the preconditions itself before any irreversible call. The model never reaches the Play API directly. |
+| Gemini 3.5 Flash | Google Cloud, Gemini API | Called by every tick | The judgement. It reads the numbers and proposes the action. |
+| Firestore | Google Cloud | Live, free tier | The pre-declared policy per app, the current rollout state, and an append-only decision log that is also the audit trail. |
+| The tick | `curl`, or `demo/run_demo.sh` | Runs | The heartbeat, by hand for now. One POST per app per tick. |
+| Cloud Run | Google Cloud | **Not deployed** | Would host the same container, scaled to zero. Blocked on billing, not on code. |
+| Cloud Scheduler | Google Cloud | **Not deployed** | Would replace the hand-typed tick. One job per watched app, so a wedged app cannot stall the others. |
+| Secret Manager | Google Cloud | **Not deployed** | Would hold the Play service-account key and the Sentry token. They are environment variables today. |
+| Cloud Build → Artifact Registry | Google Cloud | **Not deployed** | Would build and store the image. It is the deploy path rather than the run path, so it is not in the diagram. |
 
 ### Why the gate exists
 
@@ -234,7 +249,7 @@ The gate enforces four things, none of them negotiable by prompt:
 ```mermaid
 sequenceDiagram
   autonumber
-  participant S as Cloud Scheduler
+  participant S as The tick — POST /tick
   participant A as ADK agent (Gemini)
   participant G as Policy gate
   participant P as Play Developer API
@@ -298,10 +313,11 @@ The contest requires all three. Each one is load-bearing here rather than added 
 |---|---|---|
 | Gemini 3.5 or newer | Gemini 3.5 Flash through the Gemini API | It reads the evidence and picks the action. Remove it and there is a cron job with an if-statement. |
 | A Google agent framework | ADK | Tools, the tool-result loop, and the gate's refusal coming back as a tool result the agent has to respond to. |
-| A Google Cloud infrastructure service | Cloud Run, Firestore, Cloud Scheduler, Secret Manager | It has to run unattended for a rollout that takes days. There is nowhere for it to live on a laptop. |
+| A Google Cloud infrastructure service | Firestore, live and holding every decision the agent has made. Cloud Run, Cloud Scheduler and Secret Manager are designed and blocked on billing. | The policy, the rollout state and the audit trail outlive any one tick, and a rollout takes days. There is nowhere for that state to live inside the process. |
 
-Everything above sits inside free tiers: Cloud Run scales to zero, Firestore on Spark, and
-Cloud Scheduler's first three jobs are free.
+Everything above sits inside free tiers: Firestore on Spark, the Gemini API on a project
+with billing switched off, and — once it can be enabled — Cloud Run scaled to zero and
+Cloud Scheduler's first three jobs.
 
 ## Repository layout
 

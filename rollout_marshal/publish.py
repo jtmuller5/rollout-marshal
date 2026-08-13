@@ -41,8 +41,8 @@ REPO = "https://github.com/jtmuller5/rollout-marshal"
 # The page is one file, so the diagrams are inlined rather than linked. They are built
 # from the README's own mermaid blocks by demo/render_diagrams.py.
 DIAGRAMS = (
-    ("architecture.svg", "What runs where. Filled boxes are Google Cloud."),
-    ("decision-flow.svg", "One tick, from the scheduler to the halt."),
+    ("architecture.svg", "What runs where. A dashed box is designed and not deployed."),
+    ("decision-flow.svg", "One tick, from the heartbeat to the halt."),
 )
 
 
