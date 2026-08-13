@@ -310,7 +310,9 @@ def main(argv: list[str] | None = None) -> int:
         raise CutError(f"{args.narration} is missing — run demo/narrate.py first")
 
     TAKES.mkdir(exist_ok=True)
-    out = args.out or TAKES / "cut.mp4"
+    # Resolved, because a relative --out is written where the shell is and reported
+    # relative to the repo, and those are not the same place.
+    out = (args.out.resolve() if args.out else TAKES / "cut.mp4")
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         work = Path(tmp)
         parts = [segment(shot, work) for shot in ordered]
@@ -326,7 +328,8 @@ def main(argv: list[str] | None = None) -> int:
             capture_output=True, check=True)
 
     made = probe(out)
-    print(f"\n{out.relative_to(ROOT)} — {narrate.clock(made)} ({made:.1f}s), "
+    shown = out.relative_to(ROOT) if out.is_relative_to(ROOT) else out
+    print(f"\n{shown} — {narrate.clock(made)} ({made:.1f}s), "
           f"{out.stat().st_size / 1e6:.1f} MB")
     if made > 240.5:
         print("WARNING: over four minutes. Only the first four are judged.")
