@@ -118,9 +118,15 @@ class FirestoreStore:
         return doc_id
 
     def list_decisions(self, app: str, limit: int = 50) -> list[dict[str, Any]]:
+        # `limit_to_last` is served by a DESCENDING index even though the order_by
+        # here reads ascending, so the composite index this needs is (app ASC, ts
+        # DESC) — see firestore.indexes.json. An (app ASC, ts ASC) index does not
+        # satisfy it, and the error names neither direction.
+        from google.cloud.firestore_v1.base_query import FieldFilter
+
         q = (
             self.db.collection("decisions")
-            .where("app", "==", app)
+            .where(filter=FieldFilter("app", "==", app))
             .order_by("ts")
             .limit_to_last(limit)
         )

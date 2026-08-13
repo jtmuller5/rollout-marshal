@@ -50,8 +50,15 @@ What has been exercised, and what has not, as of 2026-08-13:
 - **The Play client, reading.** `MARSHAL_PLAY=live` reads the real closed-testing track.
   The write path itself was measured separately and is written up in
   `notes/play-write-path.md`; the spine has not yet written through it.
-- **Not yet: the Cloud Run deploy, Firestore, and Cloud Scheduler.** The `Dockerfile` is
-  here and the store has a Firestore implementation, but nothing has been deployed.
+- **Firestore, for real.** `MARSHAL_STORE=firestore` runs the whole of shot 4 against a
+  live database on project `gen-lang-client-0325469250` — policy, rollout, the halt, and
+  the append-only decision log read back. It is on the free tier and cannot bill. The one
+  composite index it needs is in `firestore.indexes.json`.
+- **The container, for real.** `docker build` produces a 251 MB image; running it serves
+  `/healthz` and `/decisions/{app}` off that Firestore database.
+- **Not yet: the Cloud Run deploy and Cloud Scheduler.** Both APIs refuse to enable on a
+  project with no billing account, and the loop's spend cap is $0.00, so this waits on
+  Joe. `notes/deploy.md` has the measurement and the exact commands.
 - **Not yet: the Shorebird patch.** It stays marked as not built in the diagram below.
 
 Read `notes/experiments.md` for what has been tried and `notes/demo-shot-list.md` for

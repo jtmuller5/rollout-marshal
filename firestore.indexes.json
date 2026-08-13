@@ -1,0 +1,14 @@
+{
+  "_comment": "The one composite index the service needs. list_decisions() filters on app and orders by ts with limit_to_last, and Firestore serves that from a DESCENDING index on ts. Deploy with: gcloud firestore indexes composite create --collection-group=decisions --field-config=field-path=app,order=ascending --field-config=field-path=ts,order=descending --project=<project>",
+  "indexes": [
+    {
+      "collectionGroup": "decisions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "app", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
