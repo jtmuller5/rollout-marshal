@@ -34,7 +34,7 @@ bash demo/run_demo.sh
 
 Those four commands were run against a fresh clone on 2026-08-13, on Python 3.13 and an
 empty environment: the install takes a few seconds, the demo prints the halt and exits 0,
-and the 41 tests pass in 1.4 seconds. `pip install -r requirements-dev.txt` in a
+and the 50 tests pass in 2.0 seconds. `pip install -r requirements-dev.txt` in a
 `python -m venv` works the same way if you would rather not install `uv`.
 
 That runs on a clean checkout with no credentials at all, because every outside edge has
@@ -71,6 +71,13 @@ What has been exercised, and what has not, as of 2026-08-13:
 - **Not yet: the Cloud Run deploy and Cloud Scheduler.** Both APIs refuse to enable on a
   project with no billing account, and the loop's spend cap is $0.00, so this waits on
   Joe. `notes/deploy.md` has the measurement and the exact commands.
+- **The project page, built from the log rather than typed.**
+  `python -m rollout_marshal.cli publish --app bakedown` reads the policy, the rollout and
+  every decision out of whatever store the environment points at, and writes
+  `docs/index.html`. Published against Firestore, the page leads with the live halt and
+  the Play edit id that halt committed; published after `demo/run_demo.sh`, the same page
+  says fixture in the same words. It refuses to build when the log is empty, so it cannot
+  keep claiming a halt that has stopped happening. GitHub Pages serves `docs/`.
 - **Not yet: the Shorebird patch.** It stays marked as not built in the diagram below.
 
 Read `notes/experiments.md` for what has been tried and `notes/demo-shot-list.md` for
@@ -79,7 +86,7 @@ what the video needs.
 ### The tests
 
 ```bash
-.venv/bin/python -m pytest tests -q      # 41 tests, about two seconds, from the repo root
+.venv/bin/python -m pytest tests -q      # 50 tests, about two seconds, from the repo root
 ```
 
 `pytest` is in `requirements-dev.txt` rather than `requirements.txt`, so a runtime install
@@ -89,6 +96,12 @@ They cover the gate rule by rule and one whole tick with every collaborator fake
 also cover the parts the camera sees: the four operator commands that set the release up,
 the HTTP surface the demo is filmed through, `/stream` included, and `demo/run_demo.sh`
 itself, run end to end on a free port and read shot by shot.
+
+Nine of them are about the published page. Change a reading in the store and the page has
+to change with it; empty the log and there must be no page at all; and a fixture Play
+client must never be reported as a real edit. One of them parses the node labels out of
+the README's mermaid blocks and looks for each of them in the SVG beside it, so a diagram
+that renders but says the wrong thing fails here.
 
 Two of them are about the recording rather than the code. The shooting script speaks the
 halt number and the session counts out loud, so `tests/test_demo_path.py` reads those
@@ -267,10 +280,13 @@ rollout_marshal/
   store.py        Firestore, and a JSON-file store with the same three collections
   notify.py       the email, sent after the action
   models.py       the values that move through a tick
-  cli.py          declare a policy, seed a track, inject a reading, run a tick
+  cli.py          declare a policy, seed a track, inject a reading, run a tick, publish
+  publish.py      the hosted page, generated from the decision log
 demo/
   run_demo.sh     shot 4, end to end, on one command
+  render_diagrams.py  the two mermaid blocks above, rendered to docs/assets/*.svg
   fixtures/       quiet · spike · healthy — the three readings the demo uses
+docs/             the GitHub Pages site: index.html and the diagrams it inlines
 tests/            the gate's rules one by one, a whole tick, the CLI, the HTTP
                   surface, and demo/run_demo.sh run end to end
 Dockerfile        the Cloud Run image

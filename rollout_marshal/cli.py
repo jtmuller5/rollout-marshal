@@ -8,6 +8,7 @@
     python -m rollout_marshal.cli inject --file demo/fixtures/spike.json
     python -m rollout_marshal.cli tick --app bakedown
     python -m rollout_marshal.cli decisions --app bakedown
+    python -m rollout_marshal.cli publish --app bakedown
 
 `policy set` is the CLI shot 2 of the demo needs: the policy document has to exist,
 with a created timestamp older than the release, before anything else happens.
@@ -141,6 +142,19 @@ def cmd_decisions(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_publish(a: argparse.Namespace) -> int:
+    """Build the hosted page out of the store this environment points at."""
+    from .publish import PublishError, publish
+
+    try:
+        page = publish(a.app, Path(a.out) if a.out else None)
+    except PublishError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    print(f"{page}  {page.stat().st_size:,} bytes")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="marshal")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -185,6 +199,11 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("tick")
     s.add_argument("--app", required=True)
     s.set_defaults(func=cmd_tick)
+
+    s = sub.add_parser("publish")
+    s.add_argument("--app", required=True)
+    s.add_argument("--out", default=None, help="output directory; defaults to docs/")
+    s.set_defaults(func=cmd_publish)
 
     s = sub.add_parser("decisions")
     s.add_argument("--app", required=True)
