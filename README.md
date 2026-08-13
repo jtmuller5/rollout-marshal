@@ -69,6 +69,27 @@ What has been exercised, and what has not, as of 2026-08-13:
 Read `notes/experiments.md` for what has been tried and `notes/demo-shot-list.md` for
 what the video needs.
 
+### The tests
+
+```bash
+.venv/bin/python -m pytest tests -q      # 41 tests, about two seconds, from the repo root
+```
+
+They cover the gate rule by rule and one whole tick with every collaborator faked. They
+also cover the parts the camera sees: the four operator commands that set the release up,
+the HTTP surface the demo is filmed through, `/stream` included, and `demo/run_demo.sh`
+itself, run end to end on a free port and read shot by shot.
+
+Two of them are about the recording rather than the code. The shooting script speaks the
+halt number and the session counts out loud, so `tests/test_demo_path.py` reads those
+numbers out of the fixtures and the `policy set` flags, and requires
+`notes/demo-script.md` to still say them. Edit a fixture without them and every test
+stays green; the take is wasted at the cut instead.
+
+No test can reach a real account. `tests/conftest.py` clears every variable that selects
+a live edge, the SMTP settings among them, and points the rest inside a temporary
+directory.
+
 ---
 
 ## Architecture
@@ -240,7 +261,8 @@ rollout_marshal/
 demo/
   run_demo.sh     shot 4, end to end, on one command
   fixtures/       quiet · spike · healthy — the three readings the demo uses
-tests/            the gate's rules, one test per rule, and one whole-tick test
+tests/            the gate's rules one by one, a whole tick, the CLI, the HTTP
+                  surface, and demo/run_demo.sh run end to end
 Dockerfile        the Cloud Run image
 notes/            the shot list, the measured Play write path, the experiment log
 ```
