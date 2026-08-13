@@ -66,3 +66,33 @@ behaviour, and that it applies to `inProgress` and not just to `halted`. In prac
 That asymmetry is why the agent runs the two directions differently. Halting is the safe
 direction and runs unattended; widening is the one that has to argue against a
 pre-declared number first.
+
+## The agent did it itself, 2026-08-13
+
+Everything above was a probe script. Task #1036 ran the same write from the service, on one
+tick with every edge live except the crash reading:
+
+```
+MARSHAL_PLAY=live  MARSHAL_STORE=firestore  MARSHAL_BRAIN=adk
+python -m rollout_marshal.cli tick --app bakedown
+```
+
+The track was resumed to `inProgress` at 20% first (`demo/live_alpha.py set inProgress 0.2`),
+the 76.9% spike fixture was injected, and the tick halted it. Gemini proposed HALT on its
+own reading of the evidence, `gate.py` re-derived the breach without the model, and
+`executor.py` committed edit `06187374055212919847`. The track read back as `halted` at 20%.
+
+Two numbers the demo depends on, measured on this run:
+
+| | |
+|---|---|
+| the Play write, `act` to `api` | **3 seconds** |
+| the whole tick, request to decision | **58 seconds** |
+
+The difference is two Gemini calls. The halt is not the slow part, so a video that waits
+for the tick in real time is waiting on the model, not on the store.
+
+The decision document is how a live write is told from a fixture one after the fact: the
+`api_response.edit_id` is a Play edit id on a real run and the string `fixture-edit`
+otherwise. Everything else in the document looks identical, which is worth knowing before
+anyone points at a screenshot as evidence.

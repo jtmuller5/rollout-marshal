@@ -47,9 +47,14 @@ What has been exercised, and what has not, as of 2026-08-13:
   Flash. On the first tick it proposed WIDEN, the gate refused it on the session floor,
   and it accepted the refusal and held; on the second it proposed HALT and the halt was
   written. Both reasonings are in the decision log.
-- **The Play client, reading.** `MARSHAL_PLAY=live` reads the real closed-testing track.
-  The write path itself was measured separately and is written up in
-  `notes/play-write-path.md`; the spine has not yet written through it.
+- **The Play client, writing to a real store account.** On 2026-08-13 one tick with
+  `MARSHAL_PLAY=live`, `MARSHAL_STORE=firestore` and `MARSHAL_BRAIN=adk` halted a real
+  rollout: Gemini proposed HALT, the gate confirmed the breach, and the executor committed
+  edit `06187374055212919847` against `com.mullr.abis_recipes` on the `alpha` closed
+  testing track, which went from `inProgress` at 20% to `halted` at 20%. The write took 3
+  seconds of the 58-second tick; the rest is model latency. The decision document in
+  Firestore carries that edit id. The call sequence is written up in
+  `notes/play-write-path.md`.
 - **Firestore, for real.** `MARSHAL_STORE=firestore` runs the whole of shot 4 against a
   live database on project `gen-lang-client-0325469250` — policy, rollout, the halt, and
   the append-only decision log read back. It is on the free tier and cannot bill. The one

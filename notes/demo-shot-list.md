@@ -116,6 +116,13 @@ take** and reads halted.
 confirms the breach independently, and it writes to the Play Developer API. That is a real
 store account, and this is the console refreshing."
 
+This beat was rehearsed live on 2026-08-13, so the take has a clock: the whole tick took
+**58 seconds** and the Play write **3 seconds** of it, the rest being two Gemini calls. Plan
+4c at about a minute of real time, not 45 seconds, and do not cut the wait — the pause is
+the model thinking, and it is the part that proves nothing is scripted. Setting it up costs
+one command before the take (`MARSHAL_PLAY=live python demo/live_alpha.py set inProgress
+0.2`), because Play will not let a release be taken off a track.
+
 **4d · The audit trail and the email · ~20s.** Scroll the new `decisions/{ts}` document:
 inputs, proposal, gate verdict, action taken, the API response, the model's reasoning. Then
 the email landing in an inbox, timestamped after the halt.
