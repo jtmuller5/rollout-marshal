@@ -1,0 +1,227 @@
+<!doctype html>
+<!--
+  The on-camera surface for the still shots — 2, 3 and 6.
+
+  Everything it shows was written for it by demo/record_shots.sh: the policy is the one
+  in the store, not typed in here, and the diagram is the same SVG the README renders and
+  the project page inlines. The page holds no numbers of its own.
+
+  It waits for /go before it moves, so the first beat is not spent before the recorder
+  has started. After the last beat it sits still — a shot that runs long is trimmed by
+  demo/assemble.py, and a shot that ends early would be a hole in the cut.
+
+  Written by an autonomous agent working for Joe Muller.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rollout Marshal — still shots</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #11161f;
+    --line: #1e2733;
+    --dim: #6b7a8d;
+    --fg: #ccd6e4;
+    --hot: #ff5f56;
+    --ok: #3fd68a;
+    --warn: #f7c948;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
+    overflow: hidden;
+  }
+  .shot { display: none; height: 100%; }
+  .shot.on { display: block; }
+
+  /* shot 2 — the policy, full frame */
+  #shot2 { padding: 70px 120px; }
+  .eyebrow { color: var(--warn); letter-spacing: .3em; font-size: 22px;
+             text-transform: uppercase; }
+  h1 { font-size: 54px; margin: 18px 0 6px; font-weight: 600; }
+  .sub { color: var(--dim); font-size: 24px; }
+  .policy { margin-top: 46px; border: 1px solid var(--line); background: var(--panel); }
+  .row { display: flex; justify-content: space-between; align-items: baseline;
+         padding: 20px 40px; border-bottom: 1px solid var(--line); font-size: 34px; }
+  .row:last-child { border-bottom: 0; }
+  .row .k { color: var(--dim); }
+  .row .v { font-size: 40px; }
+  .row.mark .v { color: var(--warn); }
+  .row.mark .k { color: var(--warn); }
+  .foot { margin-top: 34px; color: var(--dim); font-size: 22px; line-height: 1.6; }
+
+  /* shot 3 — the diagram */
+  #shot3 { position: relative; padding: 0; }
+  #diagram { position: absolute; inset: 0 0 120px 0; display: flex;
+             align-items: center; justify-content: center; padding: 40px 60px 0; }
+  #diagram svg { max-width: 100%; max-height: 100%; height: auto; }
+  #diagram svg .node, #diagram svg .edgePaths path, #diagram svg .edgeLabel,
+  #diagram svg .cluster { transition: opacity .45s ease; }
+  #ring { position: absolute; border: 4px solid var(--warn); border-radius: 10px;
+          box-shadow: 0 0 0 6px rgba(247,201,72,.16); opacity: 0;
+          transition: opacity .3s ease, top .45s ease, left .45s ease,
+                      width .45s ease, height .45s ease; pointer-events: none; }
+  #caption { position: absolute; left: 0; right: 0; bottom: 0; height: 120px;
+             background: var(--panel); border-top: 1px solid var(--line);
+             display: flex; align-items: center; padding: 0 70px; font-size: 30px; }
+  #caption .tag { color: var(--warn); margin-right: 26px; letter-spacing: .18em; }
+
+  /* shot 6 — the disclosure */
+  #shot6 { display: none; }
+  #shot6.on { display: flex; flex-direction: column; justify-content: center;
+              padding: 0 150px; }
+  #shot6 .line { font-size: 40px; line-height: 1.55; max-width: 1400px; }
+  #shot6 .urls { margin-top: 60px; font-size: 32px; line-height: 1.9; color: var(--ok); }
+  #shot6 .rule { width: 160px; height: 4px; background: var(--warn); margin: 40px 0; }
+</style>
+</head>
+<body>
+
+<div class="shot" id="shot2">
+  <div class="eyebrow">the rule, declared before the release</div>
+  <h1 id="p-title">policies/bakedown</h1>
+  <div class="sub" id="p-source">—</div>
+  <div class="policy" id="p-rows"></div>
+  <div class="foot" id="p-foot"></div>
+</div>
+
+<div class="shot" id="shot3">
+  <div id="diagram"></div>
+  <div id="ring"></div>
+  <div id="caption"><span class="tag" id="c-tag"></span><span id="c-text"></span></div>
+</div>
+
+<div class="shot" id="shot6">
+  <div class="eyebrow">disclosure</div>
+  <div class="rule"></div>
+  <div class="line" id="d-line">—</div>
+  <div class="urls" id="d-urls"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const shot = params.get("shot") || "2";
+let data = null;
+let running = false;
+
+function el(id) { return document.getElementById(id); }
+
+function renderPolicy(d) {
+  const p = d.policy || {};
+  el("p-title").textContent = [p.app, p.track, p.package].filter(Boolean).join(" · ");
+  el("p-source").textContent = d.policy_source || "";
+  const rows = [
+    ["halt_crash_free", (p.halt_crash_free ?? "—") + " %", true],
+    ["stages", "[" + (p.stages || []).join(", ") + "]", false],
+    ["min_hours_per_stage", (p.min_hours_per_stage ?? "—") + " h", false],
+    ["session_floor", String(p.session_floor ?? "—"), false],
+    ["baseline_crash_free", (p.baseline_crash_free ?? "—") + " %", false],
+    ["created_at", p.created_at || "—", true],
+  ];
+  const box = el("p-rows");
+  box.innerHTML = "";
+  for (const [k, v, mark] of rows) {
+    const row = document.createElement("div");
+    row.className = "row" + (mark ? " mark" : "");
+    const kk = document.createElement("span");
+    kk.className = "k"; kk.textContent = k;
+    const vv = document.createElement("span");
+    vv.className = "v"; vv.textContent = v;
+    row.append(kk, vv);
+    box.appendChild(row);
+  }
+  el("p-foot").textContent = d.policy_foot || "";
+}
+
+function renderDisclosure(d) {
+  el("d-line").textContent = d.disclosure || "";
+  const box = el("d-urls");
+  box.innerHTML = "";
+  for (const u of d.urls || []) {
+    const line = document.createElement("div");
+    line.textContent = u;
+    box.appendChild(line);
+  }
+}
+
+// Shot 3. The SVG is the rendered README diagram, so the nodes carry mermaid's own ids
+// (…-flowchart-ADK-1). A beat names one of those, dims everything else, and rings it.
+async function loadDiagram(name) {
+  const svg = await (await fetch("/asset/" + name)).text();
+  el("diagram").innerHTML = svg;
+}
+
+function nodeFor(key) {
+  const nodes = el("diagram").querySelectorAll("g.node");
+  for (const n of nodes) {
+    if (n.id && n.id.includes("-flowchart-" + key + "-")) return n;
+  }
+  return null;
+}
+
+function highlight(beat) {
+  const box = el("diagram");
+  const ring = el("ring");
+  const node = beat.node ? nodeFor(beat.node) : null;
+  if (beat.node && !node) {
+    // Loud rather than quiet: a renamed node would otherwise ring nothing at all.
+    el("c-tag").textContent = "MISSING";
+    el("c-text").textContent = "no node '" + beat.node + "' in the diagram";
+    ring.style.opacity = 0;
+    return;
+  }
+  for (const n of box.querySelectorAll("g.node")) {
+    n.style.opacity = !node || n === node ? 1 : 0.22;
+  }
+  for (const p of box.querySelectorAll("g.edgePaths path, .edgeLabel, .cluster")) {
+    p.style.opacity = node ? 0.18 : 1;
+  }
+  if (node) {
+    const r = node.getBoundingClientRect();
+    const pad = 14;
+    ring.style.left = (r.left - pad) + "px";
+    ring.style.top = (r.top - pad) + "px";
+    ring.style.width = (r.width + pad * 2) + "px";
+    ring.style.height = (r.height + pad * 2) + "px";
+    ring.style.opacity = 1;
+  } else {
+    ring.style.opacity = 0;
+  }
+  el("c-tag").textContent = beat.tag || "";
+  el("c-text").textContent = beat.caption || "";
+}
+
+async function runShot3(d) {
+  await loadDiagram(d.diagram || "architecture.svg");
+  const window_s = d.window || 32;
+  for (const beat of d.beats || []) {
+    setTimeout(async () => {
+      if (beat.diagram) {
+        await loadDiagram(beat.diagram);
+        el("ring").style.opacity = 0;
+      }
+      highlight(beat);
+    }, beat.at * window_s * 1000);
+  }
+}
+
+async function start() {
+  el("shot" + shot).classList.add("on");
+  if (shot === "2") renderPolicy(data);
+  else if (shot === "6") renderDisclosure(data);
+  else if (shot === "3") await runShot3(data);
+}
+
+async function poll() {
+  try {
+    data = await (await fetch("/data.json")).json();
+    if (data.go && !running) { running = true; await start(); return; }
+  } catch (err) { /* the server is not up yet; the next poll retries */ }
+  setTimeout(poll, 120);
+}
+poll();
+</script>
+</body>
+</html>

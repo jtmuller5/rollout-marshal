@@ -165,7 +165,7 @@ flowchart TB
     SCH["Cloud Scheduler<br/>every 10 min · one job per app"]
     subgraph RUN["Cloud Run service · marshal"]
       direction TB
-      ADK["ADK agent — Rollout Marshal<br/>Gemini 3.5 via Vertex AI"]
+      ADK["ADK agent — Rollout Marshal<br/>Gemini 3.5 Flash · Gemini API"]
       GATE["Policy gate<br/>deterministic Python"]
       TOOLS["ADK FunctionTools<br/>play_state · crash_free · policy<br/>widen · halt · patch · notify"]
       ADK -->|"proposes one action"| GATE
@@ -182,7 +182,7 @@ flowchart TB
 
   PLAY["Play Developer API v3<br/>edits.tracks get · patch · commit"]
   SENTRY["Sentry release health<br/>crash-free rate + sessions"]
-  SB["Shorebird<br/>Dart-only patch"]
+  SB["Shorebird · not built<br/>Dart-only patch"]
   MAIL["Email to the human"]
 
   TOOLS <-->|"read state · write userFraction"| PLAY
@@ -296,7 +296,7 @@ The contest requires all three. Each one is load-bearing here rather than added 
 
 | Requirement | How it is met | Why it is not decoration |
 |---|---|---|
-| Gemini 3.5 or newer | Gemini 3.5 through Vertex AI | It reads the evidence and picks the action. Remove it and there is a cron job with an if-statement. |
+| Gemini 3.5 or newer | Gemini 3.5 Flash through the Gemini API | It reads the evidence and picks the action. Remove it and there is a cron job with an if-statement. |
 | A Google agent framework | ADK | Tools, the tool-result loop, and the gate's refusal coming back as a tool result the agent has to respond to. |
 | A Google Cloud infrastructure service | Cloud Run, Firestore, Cloud Scheduler, Secret Manager | It has to run unattended for a rollout that takes days. There is nowhere for it to live on a laptop. |
 

@@ -12,12 +12,16 @@
       "owed": "Joe · a slow pan of the Play Console rollout page for Bakedown, sitting at 20%, before anything is touched."
     },
     "2": {
-      "kind": "slate",
-      "owed": "Recordable here (#1063) · the policy card, full frame and held still: halt 95.0, stages 20/50/100, 6h, session floor 120, declared hours before the take."
+      "kind": "clip",
+      "path": "takes/shot2-20260813T210114Z.mp4",
+      "unedited": true,
+      "_": "The policy as Firestore holds it, read at record time by demo/record_shots.sh 2."
     },
     "3": {
-      "kind": "slate",
-      "owed": "Recordable here (#1063) · docs/assets/architecture.svg, then decision-flow.svg, with the three highlights the shot list names."
+      "kind": "clip",
+      "path": "takes/shot3-20260813T210324Z.mp4",
+      "unedited": true,
+      "_": "The README diagrams, with the ADK agent, the gate and the Play client named in turn. Re-render and re-record when a diagram changes: demo/record_shots.sh 3."
     },
     "4": {
       "kind": "clip",
@@ -30,8 +34,10 @@
       "owed": "Joe · the Google Cloud console: the Firestore collections, and Cloud Run once #1035 unblocks the billing link. The rules ask to see the backend on Google Cloud."
     },
     "6": {
-      "kind": "slate",
-      "owed": "Recordable here (#1063) · the disclosure card. Static, and the one shot with no dependency at all."
+      "kind": "clip",
+      "path": "takes/shot6-20260813T210038Z.mp4",
+      "unedited": true,
+      "_": "The disclosure card: who built it, and the two public URLs."
     }
   }
 }

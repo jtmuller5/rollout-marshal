@@ -9,6 +9,7 @@ secrets/
 # Local agent tooling, not part of the entry.
 .claude/
 .fun-money/
+work/
 # Recordings and synthesised audio. Large, regenerable, and not part of the entry.
 takes/
 narration/

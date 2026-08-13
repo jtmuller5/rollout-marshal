@@ -82,8 +82,13 @@ def test_every_shot_has_a_manifest_entry_and_no_entry_is_orphaned(ordered):
     assert set(MANIFEST) == {s.id for s in ordered}
 
 
-def test_the_take_is_marked_unedited():
-    """Whichever shot holds the live take, it may never be padded."""
+def test_every_clip_is_marked_unedited():
+    """Every clip in the cut is one continuous capture, so none of them may be padded.
+
+    Shot 4 is the live execution the entry stakes its claim on; shots 2, 3 and 6 are
+    recorded straight off the same virtual display by demo/record_shots.sh. Nothing is
+    composited afterwards, and a frozen frame would be the first thing that was.
+    """
     live = [sid for sid, entry in MANIFEST.items() if entry.get("kind") == "clip"]
     assert live, "the manifest has no recorded clip at all"
     for sid in live:
