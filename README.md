@@ -92,6 +92,16 @@ What has been exercised, and what has not, as of 2026-08-13:
   the browser's and never stops, which is how someone who was not there can check that
   nothing was cut. Fixtures are the default, so the same command rehearses it with no
   credential.
+- **The narration, spoken and measured.** `python demo/narrate.py` reads the shooting
+  script in `notes/demo-script.md`, speaks its eleven cues with a local model, and lays
+  them on the video's own clock: a 3:55 audio bed, subtitles that match it, and one wav
+  per line so any of them can be replaced by a human read without re-timing the rest.
+  Measured on 2026-08-13, the branch-B cut is 2:46 of talking inside 3:55, and the tool
+  exits non-zero when a beat has more words than its heading allows — which it did, twice,
+  and the script was shortened rather than the pauses. The script is now the timing sheet
+  as well as the prose, so `tests/test_narration.py` holds its headings to tiling shot 4's
+  window exactly. Synthesis needs a speech model that is deliberately not a dependency of
+  this repo; `--dry-run` budgets the cut with the standard library alone.
 - **Not yet: the Shorebird patch.** It stays marked as not built in the diagram below.
 
 Read `notes/experiments.md` for what has been tried and `notes/demo-shot-list.md` for
@@ -100,7 +110,7 @@ what the video needs.
 ### The tests
 
 ```bash
-.venv/bin/python -m pytest tests -q      # 55 tests, about two seconds, from the repo root
+.venv/bin/python -m pytest tests -q      # 64 tests, about three seconds, from the repo root
 ```
 
 `pytest` is in `requirements-dev.txt` rather than `requirements.txt`, so a runtime install

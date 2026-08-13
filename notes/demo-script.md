@@ -9,10 +9,18 @@ list and this file disagree about what the software does, this one is right and 
 list needs the correction.
 
 **Budget.** 4:00 hard, and only the first four minutes are scored. The narration below is
-440 words on the branch-A cut (478 with both versions of shot 5, of which only one is
-spoken). At 150 words a minute that is 2:56 of talking inside 3:55 of video, and the 59
-seconds of difference is deliberate: it is the model thinking in 4c and the Play Console
-refreshing in 4c. Do not fill it.
+429 words on the branch-B cut and 440 on branch A, of which only one version of shot 5 is
+spoken. It is not an estimate: `python demo/narrate.py` reads this file, speaks every
+line, and measures it. Branch B is **2:46 of talking inside 3:55 of video**, and the 69
+seconds of difference is deliberate — it is the model thinking in 4c and the Play Console
+refreshing. Do not fill it.
+
+Every heading below is therefore data as well as prose. The times in a `###` heading and
+the `~Ns` on a `####` are what put each line on the clock, `tests/test_narration.py`
+holds them to tiling shot 4's window exactly, and `narrate.py` exits non-zero when a beat
+has more words than its window holds. Two beats failed that check the first time it ran,
+and both were fixed here rather than in the edit: shot 2 lost two words, and 4b lost three
+and borrowed two seconds from 4c.
 
 ## Three things the narration may not say
 
@@ -38,6 +46,18 @@ recording — it is the one place where a blocked task costs presentation score.
    was written down first. Declare it, then leave it alone.
 2. Watch the fixture rehearsal end to end: `bash demo/run_demo.sh`. It is the same beats
    with no credentials and no store account, and it costs nothing to run twice.
+3. Build the narration bed, on chonky, where the speech model lives:
+
+   ```bash
+   ~/ai-server/.venv/bin/python demo/narrate.py --out narration/
+   ```
+
+   It writes `narration/narration.wav`, a 3:55 bed with every line already at the
+   position its heading gives it, `narration.srt` to match, and one wav per cue. Lay the
+   bed under the cut and the picture follows the words rather than the other way round.
+   **A non-zero exit means a beat has more words than its window holds** — fix the
+   script, not the mix. Any cue can be replaced by a human read of the same line without
+   disturbing the rest, because each is its own file; only re-time that one.
 
 **The morning of, at least 8 hours before the take**
 
@@ -95,7 +115,7 @@ Clock in a corner of the screen, running, for the whole recording.
 
 Times are cumulative. If it overruns, cut shot 3 to the component diagram alone.
 
-### 1 · The 2am decision · 0:00–0:22 · *40%*
+### 1 · The 2am decision · 0:00–0:21 · *40%*
 
 **Screen.** Full frame: the Play Console rollout page, 20%, crash-free rate beside it. No
 title card.
@@ -105,7 +125,7 @@ title card.
 > was written down before the release shipped. A person still has to be awake at two in
 > the morning to apply it.
 
-### 2 · The number was written down first · 0:22–0:42 · *40%, 30%*
+### 2 · The number was written down first · 0:21–0:42 · *40%, 30%*
 
 **Screen.** Firestore console, `policies/bakedown` open. The fields visible:
 `halt_crash_free 95.0`, `stages [0.2, 0.5, 1.0]`, `min_hours_per_stage 6`,
@@ -113,8 +133,8 @@ title card.
 
 > Rollout Marshal starts from that written rule. Halt below ninety-five percent
 > crash-free. Twenty, fifty, a hundred. Six hours at each stage, and at least a hundred
-> and twenty sessions before a reading counts at all. A human declared this, days ago, and
-> none of it is the model's to reinterpret.
+> and twenty sessions before a reading counts. A human declared this days ago, and none of
+> it is the model's to reinterpret.
 
 ### 3 · What happens on a tick · 0:42–1:14 · *30%*
 
@@ -147,15 +167,15 @@ store write was 3.
 Let `GATE.REFUSE` land on screen before you say the word "refuses". This beat is the
 differentiator and it is worth the extra two seconds.
 
-#### 4b · The spike, said out loud · ~12s
+#### 4b · The spike, said out loud · ~14s
 
 **You type:** `.venv/bin/python -m rollout_marshal.cli inject --file demo/fixtures/spike.json`
 
 > Now I inject a crash spike into the telemetry feed. Seventy-six point nine percent
-> crash-free, over four hundred and twelve sessions. Those are measured numbers from a
-> real release in this portfolio.
+> crash-free, over four hundred and twelve sessions. Measured, from a real release in
+> this portfolio.
 
-#### 4c · The halt · ~60s, and most of it silent
+#### 4c · The halt · ~58s, and most of it silent
 
 **You type:** `curl -sf -X POST http://127.0.0.1:8811/tick/bakedown | jq`
 
