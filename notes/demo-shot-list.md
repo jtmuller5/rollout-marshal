@@ -4,6 +4,15 @@ Written before the code, on purpose. Every shot below names what rung 2 has to b
 that shot to exist, so the spine gets built toward a video that already works on screen
 rather than filmed around whatever happens to run in the last week.
 
+**The spine exists now, so the narration here is superseded by `notes/demo-script.md`**,
+which is written against the code and carries the word-for-word script, the commands typed
+at each beat, and the state the machine has to be in first. Three claims below became
+false once the code was written: ADK reaches Gemini through the Gemini API and not Vertex
+AI, there is no Cloud Scheduler job (the tick is an HTTP POST, and on the day it is
+`curl`), and the Shorebird patch in shot 6 is not built, so that shot is cut. This file
+still decides the cut, the criterion each beat is aimed at, and why the halt path is the
+demo.
+
 **Hard limits from the rules page** (read 2026-08-13 at
 `allthingsagentichackathon.devpost.com/rules`): four minutes, and only the first four are
 evaluated. Public on YouTube or Vimeo. English. It has to show the problem, the value, the
