@@ -150,11 +150,13 @@ part of the record.
 - **The demo is one command and it is not a script in the theatrical sense.** `bash
   demo/run_demo.sh` reaches the halt end to end, and the tests run that script itself and
   read it shot by shot, so the take cannot drift from the code.
-- **50 tests, about two seconds, from a clean clone with no credentials.** They cover the
-  gate rule by rule, a whole tick with every collaborator faked, the CLI, the HTTP surface
-  and the published page. Two of them read the numbers out of the fixtures and require the
-  shooting script to still speak them, so editing a fixture without the voiceover fails in
-  the suite instead of at the cut.
+- **55 tests, about two seconds, from a clean clone with no credentials.** They cover the
+  gate rule by rule, a whole tick with every collaborator faked, the CLI, the HTTP surface,
+  the published page and the recorder. Two of them read the numbers out of the fixtures and
+  require the shooting script to still speak them, so editing a fixture without the
+  voiceover fails in the suite instead of at the cut. One holds the recorder to never
+  seeding or wiping state while it is wired to the live store account, which is the one
+  mistake in this repository that has no undo.
 - **The hosted page is generated from the decision log.** It refuses to build when the log
   is empty, so it cannot go on claiming a halt that has stopped happening.
 

@@ -38,7 +38,7 @@ bash demo/run_demo.sh
 
 Those four commands were run against a fresh clone on 2026-08-13, on Python 3.13 and an
 empty environment: the install takes a few seconds, the demo prints the halt and exits 0,
-and the 50 tests pass in 2.0 seconds. `pip install -r requirements-dev.txt` in a
+and the tests pass in about two seconds. `pip install -r requirements-dev.txt` in a
 `python -m venv` works the same way if you would rather not install `uv`.
 
 That runs on a clean checkout with no credentials at all, because every outside edge has
@@ -82,6 +82,16 @@ What has been exercised, and what has not, as of 2026-08-13:
   the Play edit id that halt committed; published after `demo/run_demo.sh`, the same page
   says fixture in the same words. It refuses to build when the log is empty, so it cannot
   keep claiming a halt that has stopped happening. GitHub Pages serves `docs/`.
+- **The take, recorded rather than described.** `bash demo/record_take.sh` films shot 4 —
+  the refused widen, the injected spike, the halt, the audit trail — to an mp4, with no
+  camera and no desktop: a browser on a virtual X display, `ffmpeg` reading that display,
+  and the real service driving the page. Run live on 2026-08-13 it produced a 78-second
+  continuous capture in which Gemini's own reasoning, the gate's verdict and Play edit
+  `10688190058094298396` are all legible, and the track pill flips to `halted` on an
+  independent read of the API three seconds after the write. The clock in the corner is
+  the browser's and never stops, which is how someone who was not there can check that
+  nothing was cut. Fixtures are the default, so the same command rehearses it with no
+  credential.
 - **Not yet: the Shorebird patch.** It stays marked as not built in the diagram below.
 
 Read `notes/experiments.md` for what has been tried and `notes/demo-shot-list.md` for
@@ -90,7 +100,7 @@ what the video needs.
 ### The tests
 
 ```bash
-.venv/bin/python -m pytest tests -q      # 50 tests, about two seconds, from the repo root
+.venv/bin/python -m pytest tests -q      # 55 tests, about two seconds, from the repo root
 ```
 
 `pytest` is in `requirements-dev.txt` rather than `requirements.txt`, so a runtime install

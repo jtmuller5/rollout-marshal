@@ -9,3 +9,5 @@ secrets/
 # Local agent tooling, not part of the entry.
 .claude/
 .fun-money/
+# Recordings. Large, regenerable, and not part of the entry.
+takes/
