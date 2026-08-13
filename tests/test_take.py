@@ -114,3 +114,38 @@ def test_the_driver_walks_the_four_beats_the_shot_list_names():
     # Nothing may be pushed to the page before the call that produced it, so the tick
     # result is read from the response rather than assumed.
     assert "post_tick(args.port, app)" in driver
+
+
+def test_a_failed_brain_is_reported_rather_than_raised():
+    """A tick whose agent died still returns a decision, with an empty gate verdict.
+
+    Measured on 2026-08-13: the Gemini free tier allows 20 generate-content requests a
+    day per model, a live take spends most of them, and the second take of the day got
+    429 mid-halt. `result["gate"]["reason"]` then raised `KeyError: 'reason'` on top of
+    the real error and the take ended in a traceback that never said "quota".
+    """
+    import drive_take
+
+    assert drive_take.verdict({"action_taken": "HALT", "gate": {"reason": "breach"}}) == "breach"
+    for dead in ({"action_taken": None, "gate": {}}, {"action_taken": None}, {}):
+        assert "proposed nothing" in drive_take.verdict(dead)
+
+
+def test_a_beat_that_did_not_happen_stops_the_take():
+    """Better a short recording than beats on screen the picture contradicts."""
+    import drive_take
+
+    said: list[tuple] = []
+
+    class FakePage:
+        def push(self, kind, text, *rest):
+            said.append((kind, text))
+
+    page = FakePage()
+    assert drive_take.expect(page, {"action_taken": "HALT", "gate": {"reason": "ok"}},
+                             "HALT", "4c") is True
+    assert said == []
+    assert drive_take.expect(page, {"action_taken": None, "gate": {}}, "HALT", "4c") is False
+    assert said[0][0] == "error"
+    assert "4c expected HALT" in said[0][1]
+    assert "recording is kept" in said[0][1]

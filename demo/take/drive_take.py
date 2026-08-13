@@ -118,6 +118,36 @@ def post_tick(port: int, app: str) -> dict:
         return json.loads(resp.read())
 
 
+def verdict(result: dict) -> str:
+    """What the gate said, or the honest substitute when there was no proposal.
+
+    A brain that fails — a 429 on the free tier is the way it fails here — still returns
+    a decision, with an empty gate verdict in it. Reading `result["gate"]["reason"]`
+    then raises `KeyError: 'reason'` on top of the real error, and the take dies in a
+    traceback that says nothing about the quota. Say what happened instead.
+    """
+    reason = (result.get("gate") or {}).get("reason")
+    if reason:
+        return reason
+    return "the agent proposed nothing — see the ERROR line above"
+
+
+def expect(page: "Page", result: dict, wanted: str, beat: str) -> bool:
+    """Stop the take rather than film a beat that did not happen.
+
+    The script's own rule: a model that changes its mind on the same evidence is a
+    finding, so the recording is kept and investigated. Either way the run ends here —
+    a driver that carries on writes beats onto the page that the picture contradicts.
+    """
+    got = result.get("action_taken")
+    if got == wanted:
+        return True
+    page.push("error", f"{beat} expected {wanted} and the tick returned {got or 'nothing'}"
+                       f" — {verdict(result)}. Take stopped; the recording is kept.")
+    time.sleep(3.0)
+    return False
+
+
 def run(cmd: list[str]) -> str:
     out = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)
     return (out.stdout or out.stderr).strip()
@@ -170,7 +200,10 @@ def main() -> int:
     page.push("cmd", tick_cmd)
     time.sleep(2.0)
     first = post_tick(args.port, app)
-    page.push("note", f"tick returned {first['action_taken']} — {first['gate']['reason']}")
+    page.push("note", f"tick returned {first.get('action_taken')} — {verdict(first)}")
+    if not expect(page, first, "HOLD", "4a"):
+        stop.set()
+        return 3
     time.sleep(args.dwell)
 
     # 4b — the spike, said out loud. This is the one fixture in the take.
@@ -193,9 +226,12 @@ def main() -> int:
     started = time.monotonic()
     second = post_tick(args.port, app)
     took = time.monotonic() - started
-    page.push("note", f"tick returned {second['action_taken']} in {took:.0f}s "
-                      f"— {second['gate']['reason']}")
+    page.push("note", f"tick returned {second.get('action_taken')} in {took:.0f}s "
+                      f"— {verdict(second)}")
     api = second.get("inputs", {})
+    if not expect(page, second, "HALT", "4c"):
+        stop.set()
+        return 3
     page.push("note", f"decision {second['decision_id']}")
     time.sleep(args.dwell)
 

@@ -1,0 +1,37 @@
+{
+  "_": [
+    "What picture fills each shot of the demo video. The windows are NOT here — they",
+    "are in notes/demo-script.md, where the narration reads them too, so the voice and",
+    "the picture cannot disagree. demo/assemble.py joins the two.",
+    "A shot with kind 'slate' has not been filmed; 'owed' says who owes it. Replace the",
+    "entry with a clip or a still and re-run assemble.py — nothing else has to move."
+  ],
+  "shots": {
+    "1": {
+      "kind": "slate",
+      "owed": "Joe · a slow pan of the Play Console rollout page for Bakedown, sitting at 20%, before anything is touched."
+    },
+    "2": {
+      "kind": "slate",
+      "owed": "Recordable here (#1063) · the policy card, full frame and held still: halt 95.0, stages 20/50/100, 6h, session floor 120, declared hours before the take."
+    },
+    "3": {
+      "kind": "slate",
+      "owed": "Recordable here (#1063) · docs/assets/architecture.svg, then decision-flow.svg, with the three highlights the shot list names."
+    },
+    "4": {
+      "kind": "clip",
+      "path": "takes/take-20260813T195425Z.mp4",
+      "unedited": true,
+      "_": "The live take. One continuous capture, never padded and never cut into."
+    },
+    "5": {
+      "kind": "slate",
+      "owed": "Joe · the Google Cloud console: the Firestore collections, and Cloud Run once #1035 unblocks the billing link. The rules ask to see the backend on Google Cloud."
+    },
+    "6": {
+      "kind": "slate",
+      "owed": "Recordable here (#1063) · the disclosure card. Static, and the one shot with no dependency at all."
+    }
+  }
+}

@@ -102,6 +102,17 @@ What has been exercised, and what has not, as of 2026-08-13:
   as well as the prose, so `tests/test_narration.py` holds its headings to tiling shot 4's
   window exactly. Synthesis needs a speech model that is deliberately not a dependency of
   this repo; `--dry-run` budgets the cut with the standard library alone.
+- **The cut, assembled from the same clock.** `python demo/assemble.py` reads the shooting
+  script's windows — the ones the narration is already laid on — and fills each with the
+  picture named in `demo/cut.json`, so the voice and the picture cannot drift apart. A shot
+  nobody has filmed yet becomes a placeholder card saying who owes it, which keeps the cut
+  full length and makes swapping the real shot in a one-line change. It refuses two things
+  on purpose: a clip shorter than its window, and any attempt to pad a clip marked
+  `unedited`. Freezing a frame to cover a gap in shot 4 would make the video lie about
+  being an unedited live execution, so the fix for a short take is to record it again.
+- **Not yet: shots 1 and 5, and the finished cut.** Those two are pans of the Play Console
+  and the Google Cloud console on a logged-in browser, so they are the human's. Everything
+  around them is in the can.
 - **Not yet: the Shorebird patch.** It stays marked as not built in the diagram below.
 
 Read `notes/experiments.md` for what has been tried and `notes/demo-shot-list.md` for
@@ -110,7 +121,7 @@ what the video needs.
 ### The tests
 
 ```bash
-.venv/bin/python -m pytest tests -q      # 64 tests, about three seconds, from the repo root
+.venv/bin/python -m pytest tests -q      # 79 tests, about three seconds, from the repo root
 ```
 
 `pytest` is in `requirements-dev.txt` rather than `requirements.txt`, so a runtime install
