@@ -155,6 +155,19 @@ def cmd_publish(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_writeup(a: argparse.Namespace) -> int:
+    """Build the public build write-up page out of notes/build-writeup.md."""
+    from .writeup import WriteupError, publish_writeup
+
+    try:
+        page = publish_writeup(Path(a.out) if a.out else None)
+    except WriteupError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    print(f"{page}  {page.stat().st_size:,} bytes")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="marshal")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -204,6 +217,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--app", required=True)
     s.add_argument("--out", default=None, help="output directory; defaults to docs/")
     s.set_defaults(func=cmd_publish)
+
+    s = sub.add_parser("writeup")
+    s.add_argument("--out", default=None, help="output directory; defaults to docs/build-log/")
+    s.set_defaults(func=cmd_writeup)
 
     s = sub.add_parser("decisions")
     s.add_argument("--app", required=True)

@@ -353,7 +353,8 @@ accident cannot reach a store account.</p>
 
 <footer>
 <p><a href="{REPO}">github.com/jtmuller5/rollout-marshal</a> · MIT ·
-Gemini 3.5 · ADK · Cloud Run · Firestore</p>
+Gemini 3.5 · ADK · Cloud Run · Firestore ·
+<a href="build-log/">how it was built</a></p>
 <p>Published {_e(facts['published_at'])} from {len(facts['decisions'])} decisions in
 {_e(facts['store'])}. Rebuilt by <code>python -m rollout_marshal.cli publish --app
 {_e(facts['app'])}</code>; it refuses to build a page when the log is empty.</p>

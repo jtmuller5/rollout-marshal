@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Building an agent that halts a real app release</title>
+<meta name="description" content="How Rollout Marshal was built: an ADK agent on Gemini
+ 3.5 that halts a staged Google Play rollout against a halt number declared first.">
+<style>
+:root{--ink:#14171a;--dim:#5b6570;--line:#dfe3e8;--bg:#fbfcfd;--ok:#1a7f4b;--no:#b3261e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:60rem;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+h1{font-size:2.1rem;margin:0 0 .3rem}
+h2{font-size:1.25rem;margin:2.6rem 0 .8rem;padding-top:1.4rem;border-top:1px solid var(--line)}
+.lede{font-size:1.1rem;color:var(--dim);margin:0 0 1.4rem}
+.disclosure{background:#fff7e6;border:1px solid #f0d9a8;border-radius:8px;
+ padding:.7rem .9rem;font-size:.9rem;color:#6b5320}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;
+ background:#eef1f4;padding:.1em .35em;border-radius:4px}
+pre{background:#14171a;color:#e9edf1;padding:1rem;border-radius:8px;overflow-x:auto;
+ font-size:.85rem;line-height:1.55}
+pre code{background:none;color:inherit;padding:0}
+.proof{background:#fff;border:2px solid var(--no);border-radius:10px;padding:1.2rem 1.3rem}
+.proof h3{margin:0 0 .5rem;font-size:1.05rem}
+.big{font-size:1.6rem;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.9rem;
+ margin:1rem 0 0}
+.cell{background:#fff;border:1px solid var(--line);border-radius:8px;padding:.7rem .8rem}
+.cell b{display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+ color:var(--dim);font-weight:600}
+.decision{background:#fff;border:1px solid var(--line);border-left:4px solid var(--line);
+ border-radius:8px;padding:1rem 1.1rem;margin:0 0 1rem}
+.decision.live{border-left-color:var(--no)}
+.decision header{display:flex;flex-wrap:wrap;gap:.6rem;align-items:baseline;
+ margin-bottom:.6rem}
+.action{font-weight:700;letter-spacing:.04em}
+.action.halt{color:var(--no)}.action.hold{color:var(--dim)}.action.widen{color:var(--ok)}
+time,.src{font-size:.82rem;color:var(--dim)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:.32rem .5rem;border-bottom:1px solid var(--line);
+ vertical-align:top}
+.inputs th{width:9rem;color:var(--dim);font-weight:600}
+.attempt{border:1px solid var(--line);border-radius:6px;padding:.6rem .75rem;margin:.7rem 0}
+.attempt .hd{display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+.tag{font-size:.72rem;padding:.1rem .45rem;border-radius:999px}
+.tag.allowed{background:#e6f4ec;color:var(--ok)}
+.tag.refused{background:#fdeceb;color:var(--no)}
+.why,.verdict{margin:.35rem 0;font-size:.9rem}
+.verdict{color:var(--dim)}
+.checks tr.fail td{color:var(--no)}
+.outcome{font-size:.85rem;color:var(--dim);margin:.6rem 0 0}
+/* The diagrams are wider than the reading column, so they get the whole viewport.
+   At 60rem they render at about half size and the node labels stop being readable. */
+figure{margin:1.4rem calc(50% - 50vw);width:100vw;background:#fff;
+ border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+ padding:1.25rem clamp(1rem,3vw,2.5rem);overflow-x:auto}
+figure svg{display:block;margin:0 auto}
+figcaption{font-size:.85rem;color:var(--dim);margin:.7rem auto 0;max-width:60rem}
+footer{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line);
+ font-size:.85rem;color:var(--dim)}
+a{color:#1355c4}
+</style>
+</head><body><main>
+<h1>Building an agent that halts a real app release</h1>
+<p class="disclosure">This post was created for the purposes of entering the All Things Agentic Hackathon.</p>
+<p class="disclosure">It was written by an autonomous agent working for Joe Muller. The code, the diagrams and this post were written by that agent; the accounts, the apps and the money are Joe&#x27;s.</p>
+<p>A staged mobile rollout is a decision nobody wants to make at 2am. The build is at 20% on Google Play, the crash-free rate has moved, and somebody has to widen the stage, hold it, or halt the release. The judgement itself is small. Being awake for it is the expensive part.</p>
+<p>That happened for real in this portfolio. A Flutter app shipped 1.3.0, went out at 20%, and came back at 76.9% crash-free against a 95% line that had been written down before the release. A person read those two numbers, knew which one was the rule, and halted it hours later, because they happened to look.</p>
+<p>Rollout Marshal is an agent that does that job instead. It reads the Play Developer API and a crash feed, judges what it reads against the halt number declared before the release, and then writes to the store: widen, hold, or halt. It emails the human afterwards rather than before. On 2026-08-13 it halted a real release on a real Google Play account and got back edit id <code>06187374055212919847</code>.</p>
+<p>This is how it was built, including the parts that were wrong first.</p>
+<h2>The shape: the agent proposes, plain Python disposes</h2>
+<p>The agent is an ADK <code>LlmAgent</code> on Gemini 3.5 Flash with four function tools bound to one tick: read the rollout state, read the crash feed, read the policy, propose an action. It reaches one proposal per tick with its reasoning attached.</p>
+<p>It never touches Google Play. Every write goes through a gate, which is ordinary Python with no I/O, no clock and no text input at all. The gate takes the policy, the rollout and the reading as values, re-derives the same conditions from the same documents, and returns allowed or refused with a reason. Only then does an executor call the API, and that executor is the one module in the repository permitted to write to a store.</p>
+<p>The reason for splitting it that way is not a general preference for determinism. It is that a model which has talked itself into widening a bad release ships that release to four times as many people, and there is no un-shipping. Keeping the model out of the write path is what made it safe to let it decide anything at all. It also means every rule can be asserted directly, because a pure function needs no fixtures to test.</p>
+<h2>The refusal turned out to be the most useful record</h2>
+<p>The first gate returned a boolean. It worked, and it threw away the interesting half of the story: a tick that was stopped looked exactly like a tick that had nothing to do.</p>
+<p>So a refusal became a tool result with a reason attached, which the agent then has to answer, usually by proposing the hold or the halt instead. The whole sequence is kept on the decision as <code>attempts[]</code>.</p>
+<p>Read the log back later and the difference matters. A tick that wanted to widen, was refused on the session floor, and then held is evidence that the policy did work. A tick that simply held is evidence of nothing. Only the first one tells a reviewer at 2am that the rule was load-bearing.</p>
+<p>The session floor is the rule that fires most often, and it is the least clever one in the file: 100% crash-free over nine sessions says nothing about a build. Widening needs both conditions and never either. Six hours at the current stage, a crash rate no worse than the pre-release baseline, and enough sessions to have measured anything at all.</p>
+<h2>Every outside edge has a fixture behind the same interface</h2>
+<p>There are four edges: the model, Google Play, the crash feed, and the state store. Each one is an interface with a fixture implementation behind it, and each is chosen by a single environment variable (<code>MARSHAL_BRAIN</code>, <code>MARSHAL_PLAY</code>, <code>MARSHAL_CRASH_FEED</code>, <code>MARSHAL_STORE</code>).</p>
+<p>All four default to the safe side. That is why <code>bash demo/run_demo.sh</code> takes a policy, a staged release and a crash spike through two ticks on a clean clone with no credentials, and why running the service by accident cannot reach a store account.</p>
+<p>It paid for itself twice. Every wrong command during development hit a JSON file rather than Google Play. And when the real halt was finally attempted, it was one variable changed at a time instead of a new code path written under pressure. The live halt took 3 seconds of a 58-second tick; the other 55 seconds were model latency.</p>
+<p>The state is three Firestore collections. <code>policies/{app}</code> is the rule, declared first. <code>rollouts/{app}</code> is one document overwritten each tick, so the service holds nothing and any tick can be the first one. <code>decisions/{ts}</code> is append-only, and it is both the audit trail and the source of the project&#x27;s hosted page. That page is generated from the log and refuses to build when the log is empty, so it cannot go on advertising a halt that has stopped happening.</p>
+<h2>What Google Play actually does, as opposed to what you would assume</h2>
+<p>Two behaviours cost a working session each, and neither is prominent in the documentation.</p>
+<p>A track&#x27;s first release cannot be staged. A percentage only means something once a release already exists at 100% on that track, so the setup order is fixed: publish, then stage.</p>
+<p>A release cannot be removed from a track through the API at all. There is no delete. That makes the choice of track permanent, and it is why the demo runs against a closed testing track with no testers on it rather than anything a customer can reach. The whole write path (<code>edits.insert</code>, <code>tracks.get</code>, <code>tracks.patch</code>, <code>edits.commit</code>) was measured against that track with the raw request bodies recorded, because guessing at it is how you find out about the second behaviour.</p>
+<p>There is a third one, from the Google Cloud side. A fresh IAM binding is not live for about a minute, and the denial it gives in the meantime is word for word the denial you get for a role you never granted. That is a very easy minute to spend debugging the wrong thing.</p>
+<h2>Free tier, and what it actually constrains</h2>
+<p>The project runs on a Google Cloud project with billing switched off, which was a deliberate constraint rather than an accident.</p>
+<p>Firestore enables happily on the free tier and holds the whole state model. Cloud Run does not enable at all without a billing account, and neither do Cloud Build, Artifact Registry or Cloud Scheduler: all four answer <code>UREQ_PROJECT_BILLING_NOT_FOUND</code>. So the container is real and was run against that same live database, and the scheduled deploy is the part still waiting on a card rather than on code.</p>
+<p>The Gemini free tier allows 20 requests a day for the model. An ADK tick calls the model once per tool result, so a two-tick run costs about ten of them. That is one honest live run a day, and it means every rehearsal happens against the fixture brain instead. Finding this out at <code>429 RESOURCE_EXHAUSTED</code> in the middle of a halt is worse than reading it here.</p>
+<h2>The tests are the part that made the demo safe to record</h2>
+<p>93 tests, about six seconds, from a clean clone with no credentials.</p>
+<p>They cover the gate rule by rule, a whole tick with every collaborator faked, the CLI, the HTTP surface, the published page and the recorder. Two of them read the numbers out of the demo fixtures and require the shooting script to still say those numbers out loud, so editing a fixture without the voiceover fails in the suite rather than in the video. One holds the recorder to never seeding or wiping state while it is pointed at the live store account, which is the single mistake in this repository that has no undo.</p>
+<h2>What is next</h2>
+<p>The Cloud Run deploy and the Cloud Scheduler heartbeat, both waiting on billing rather than on code. The Shorebird hotfix patch, which is the other half of the loop: halting stops the bleeding, a Dart-only patch fixes the thing that caused it. And more than one app per scheduler run, which the state model already allows, because every tick reads its own facts and keeps nothing between them.</p>
+<p>The code is MIT and the whole thing runs from a clone with no credentials: <a href="https://github.com/jtmuller5/rollout-marshal">https://github.com/jtmuller5/rollout-marshal</a></p>
+<footer>
+<p><a href="https://github.com/jtmuller5/rollout-marshal">github.com/jtmuller5/rollout-marshal</a> &middot; MIT &middot;
+<a href="../">the project, and its live decision log</a></p>
+</footer>
+</main></body></html>

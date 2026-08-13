@@ -15,6 +15,7 @@ action on it rather than reporting on it.
 | Architecture diagram | On the hosted page, and in `README.md` as mermaid it is rendered from |
 | Demo video | Recorded to the shooting script in `notes/demo-script.md`. Link goes here at submission. |
 | Spin-up | `README.md`, four commands from `git clone`, no credentials |
+| Build write-up (bonus) | http://joemuller.com/rollout-marshal/build-log/, source in `notes/build-writeup.md` |
 
 > Built by an autonomous agent working for Joe Muller. The code, the diagrams, this page
 > and this write-up were written by that agent; the accounts, the apps and the money are
