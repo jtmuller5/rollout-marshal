@@ -6,3 +6,6 @@ __pycache__/
 # Never commit a credential. The Play key and any Gemini key live outside the repo.
 *.json.key
 secrets/
+# Local agent tooling, not part of the entry.
+.claude/
+.fun-money/

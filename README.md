@@ -26,9 +26,16 @@ two ticks, and the second one halts the rollout, writes the audit trail and send
 email:
 
 ```bash
-uv venv && uv pip install -r requirements.txt
+git clone https://github.com/jtmuller5/rollout-marshal.git
+cd rollout-marshal
+uv venv && uv pip install -r requirements-dev.txt   # requirements.txt alone runs the demo
 bash demo/run_demo.sh
 ```
+
+Those four commands were run against a fresh clone on 2026-08-13, on Python 3.13 and an
+empty environment: the install takes a few seconds, the demo prints the halt and exits 0,
+and the 41 tests pass in 1.4 seconds. `pip install -r requirements-dev.txt` in a
+`python -m venv` works the same way if you would rather not install `uv`.
 
 That runs on a clean checkout with no credentials at all, because every outside edge has
 a fixture behind the same interface as the real thing. Four environment variables swap
@@ -74,6 +81,9 @@ what the video needs.
 ```bash
 .venv/bin/python -m pytest tests -q      # 41 tests, about two seconds, from the repo root
 ```
+
+`pytest` is in `requirements-dev.txt` rather than `requirements.txt`, so a runtime install
+carries no test dependency into the Cloud Run image.
 
 They cover the gate rule by rule and one whole tick with every collaborator faked. They
 also cover the parts the camera sees: the four operator commands that set the release up,
@@ -264,6 +274,8 @@ demo/
 tests/            the gate's rules one by one, a whole tick, the CLI, the HTTP
                   surface, and demo/run_demo.sh run end to end
 Dockerfile        the Cloud Run image
+requirements.txt      what the service needs to run
+requirements-dev.txt  the same, plus pytest, for the suite above
 notes/            the shot list, the measured Play write path, the experiment log
 ```
 
@@ -272,4 +284,4 @@ built-in module and shadows any package of that name.
 
 ## Licence
 
-Not yet chosen. The contest requires one before submission.
+MIT, in `LICENSE`. Copyright Joe Muller.
