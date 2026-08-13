@@ -21,9 +21,41 @@ the action a person is otherwise paid to sit and wait to take.
 
 ## Status
 
-This repository currently holds the design. Nothing is deployed yet. The diagram below is
-the shape being built toward rather than a picture of running code, and a component that
-does not exist yet is marked as such. Read `notes/experiments.md` for what has been tried.
+The spine runs. One command takes a policy, a staged release and a crash spike through
+two ticks, and the second one halts the rollout, writes the audit trail and sends the
+email:
+
+```bash
+uv venv && uv pip install -r requirements.txt
+bash demo/run_demo.sh
+```
+
+That runs on a clean checkout with no credentials at all, because every outside edge has
+a fixture behind the same interface as the real thing. Four environment variables swap
+them one at a time:
+
+| Variable | Default | The real thing |
+|---|---|---|
+| `MARSHAL_BRAIN` | `scripted` | `adk` — Gemini 3.5 through ADK |
+| `MARSHAL_PLAY` | `fixture` | `live` — Play Developer API writes |
+| `MARSHAL_CRASH_FEED` | `fixture` | `sentry` — live release health |
+| `MARSHAL_STORE` | `file` | `firestore` |
+
+What has been exercised, and what has not, as of 2026-08-13:
+
+- **The agent, on the real model.** `MARSHAL_BRAIN=adk` runs the whole tick on Gemini 3.5
+  Flash. On the first tick it proposed WIDEN, the gate refused it on the session floor,
+  and it accepted the refusal and held; on the second it proposed HALT and the halt was
+  written. Both reasonings are in the decision log.
+- **The Play client, reading.** `MARSHAL_PLAY=live` reads the real closed-testing track.
+  The write path itself was measured separately and is written up in
+  `notes/play-write-path.md`; the spine has not yet written through it.
+- **Not yet: the Cloud Run deploy, Firestore, and Cloud Scheduler.** The `Dockerfile` is
+  here and the store has a Firestore implementation, but nothing has been deployed.
+- **Not yet: the Shorebird patch.** It stays marked as not built in the diagram below.
+
+Read `notes/experiments.md` for what has been tried and `notes/demo-shot-list.md` for
+what the video needs.
 
 ---
 
@@ -154,7 +186,12 @@ rollouts/{app}          current state, one document, overwritten each tick
 decisions/{ts}          append-only; the audit trail and the demo's right-hand pane
   inputs {crash_free, sessions, hours_at_stage, halt_criterion}
   proposal, gate_verdict, action_taken, api_response, model_reasoning
+  attempts[]            every proposal this tick, in order, with the gate's answer
 ```
+
+`attempts` is there because a refused proposal is the part worth keeping. A tick that
+wanted to widen, was refused on the session floor and then held is a different event
+from a tick that simply held, and only the first one tells you the policy did work.
 
 `decisions/` is append-only on purpose. It is what makes "the agent acted while nobody was
 watching" reviewable after the fact, and it is what the demo video reads from.
@@ -175,12 +212,29 @@ Cloud Scheduler's first three jobs are free.
 ## Repository layout
 
 ```
-notes/demo-shot-list.md the four-minute video, shot by shot, and what each shot needs built
-notes/experiments.md    what has been tried, one line per attempt
-README.md               this file
+rollout_marshal/
+  server.py       the Cloud Run service: POST /tick/{app}, GET /stream, /decisions, /healthz
+  tick.py         one tick, start to finish, and the collaborators it holds
+  agent.py        the ADK agent on Gemini 3.5, and a scripted control that uses no model
+  tools.py        the four functions the model can call, bound to one tick
+  gate.py         the policy gate. Pure Python, no I/O, no prompt input
+  executor.py     the only module that performs a store write
+  play.py         Play Developer API v3, and a fixture with the same behaviour
+  crash.py        Sentry release health, and a fixture that can be swapped mid-run
+  store.py        Firestore, and a JSON-file store with the same three collections
+  notify.py       the email, sent after the action
+  models.py       the values that move through a tick
+  cli.py          declare a policy, seed a track, inject a reading, run a tick
+demo/
+  run_demo.sh     shot 4, end to end, on one command
+  fixtures/       quiet · spike · healthy — the three readings the demo uses
+tests/            the gate's rules, one test per rule, and one whole-tick test
+Dockerfile        the Cloud Run image
+notes/            the shot list, the measured Play write path, the experiment log
 ```
 
-The service, the tools and the demo harness land next.
+The package is `rollout_marshal` rather than `marshal` because `marshal` is a Python
+built-in module and shadows any package of that name.
 
 ## Licence
 

@@ -1,0 +1,7 @@
+{
+  "name": "healthy",
+  "release": "1.0.121",
+  "crash_free_rate": 99.6,
+  "sessions": 380,
+  "note": "Enough sessions to read, and above the pre-release baseline. This is the reading a widen is allowed on, once the clock also agrees."
+}

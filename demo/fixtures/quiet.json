@@ -1,0 +1,7 @@
+{
+  "name": "quiet",
+  "release": "1.0.121",
+  "crash_free_rate": 100.0,
+  "sessions": 41,
+  "note": "A fresh release at 20% of a small app. The rate looks perfect and says nothing: 41 sessions is below the declared floor of 120."
+}

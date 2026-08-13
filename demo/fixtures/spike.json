@@ -1,0 +1,7 @@
+{
+  "name": "spike",
+  "release": "1.0.121",
+  "crash_free_rate": 76.9,
+  "sessions": 412,
+  "note": "Measured, not invented. A real release in this portfolio ran at 76.9% crash-free over 412 sessions against a 95% line and was halted by hand within hours."
+}
