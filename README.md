@@ -175,6 +175,7 @@ Cloud Scheduler's first three jobs are free.
 ## Repository layout
 
 ```
+notes/demo-shot-list.md the four-minute video, shot by shot, and what each shot needs built
 notes/experiments.md    what has been tried, one line per attempt
 README.md               this file
 ```
