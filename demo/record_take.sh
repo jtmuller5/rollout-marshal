@@ -7,9 +7,21 @@
 #   MARSHAL_PLAY=live MARSHAL_STORE=firestore \
 #   MARSHAL_BRAIN=adk bash demo/record_take.sh   # the real one
 #
-# The live form writes to a real Play track and costs two Gemini calls. It does not seed
+# The live form writes to a real Play track and runs two agent ticks. It does not seed
 # anything: put the track back to inProgress with demo/live_alpha.py first, because Play
-# will not take a release off a track.
+# will not take a release off a track. If a beat does not happen, the driver puts the
+# track back to halted itself and says so on camera — see restore_track() in drive_take.py.
+#
+# DWELL sets the length, and shot 4's window in notes/demo-script.md is 122 seconds.
+# Measured on 2026-08-13: five dwell pauses, so a fixture run is 5s longer per unit of
+# DWELL (97.3s at 16, 102.3s at 17), and the live wiring adds about 31s of real agent
+# latency on top. DWELL=17 is therefore the one to record at: it lands near 133s, which
+# is long enough for assemble.py to fill the window and short enough that the trim falls
+# inside the final pause rather than into the audit trail. Never pad a short take.
+#
+# Two live ticks cost about ten Gemini requests and the free tier allows twenty a day per
+# model, so plan on ONE live take a day and rehearse with the default fixture brain,
+# which is free and instant.
 #
 # What it produces:
 #   takes/take-<utc>.mp4      the recording, one continuous capture, no cut

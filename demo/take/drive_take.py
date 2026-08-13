@@ -132,6 +132,50 @@ def verdict(result: dict) -> str:
     return "the agent proposed nothing — see the ERROR line above"
 
 
+def restore_track(page: "Page", app: str) -> None:
+    """Put a real Play track back where the take found it, when the take dies early.
+
+    Shot 4 starts from a resumed release, because Play will not take a release off a
+    track: somebody runs `demo/live_alpha.py set inProgress 0.2` before the camera
+    rolls. If the take then stops on a beat that did not happen — the free tier's 429
+    mid-halt is how that happens here — the release is left rolling out at 20% and only
+    a person reading the log afterwards knows it. So the driver performs its own undo.
+
+    Two rules, and both are the reason this is safe to do without asking. It only ever
+    halts, never resumes, so the worst case is a release that stops earlier than
+    intended. And it does nothing at all unless the client is the real one and the
+    track is still `inProgress`, so a successful take, which ends halted, is untouched.
+    """
+    try:
+        from rollout_marshal.play import RealPlayClient, build_play_client, release_body
+        from rollout_marshal.store import build_store
+
+        client = build_play_client()
+        if not isinstance(client, RealPlayClient):
+            return
+        policy = build_store().get_policy(app)
+        before = client.get_track(policy.package, policy.track)
+        if before.status != "inProgress":
+            page.push("note", f"track is {before.status}; nothing to put back")
+            return
+        body = release_body(
+            before.release_name, before.version_codes, "halted", before.user_fraction
+        )
+        resp = client.set_release(policy.package, policy.track, body)
+        after = client.get_track(policy.package, policy.track)
+        page.push(
+            "note",
+            f"take aborted — {policy.package}/{policy.track} put back to "
+            f"{after.status} at {after.user_fraction:.0%}, Play edit {resp.get('edit_id')}",
+        )
+    except Exception as exc:  # noqa: BLE001 - say it out loud rather than hide it
+        page.push(
+            "error",
+            f"could not put the track back: {exc}. Run: MARSHAL_PLAY=live "
+            f"python demo/live_alpha.py set halted 0.2",
+        )
+
+
 def expect(page: "Page", result: dict, wanted: str, beat: str) -> bool:
     """Stop the take rather than film a beat that did not happen.
 
@@ -162,6 +206,15 @@ def main() -> int:
     args = ap.parse_args()
 
     page = Page(args.take_url)
+    try:
+        return take(args, page)
+    except Exception as exc:  # noqa: BLE001 - a died take still owes the undo
+        page.push("error", f"the take died: {exc}")
+        restore_track(page, args.app)
+        raise
+
+
+def take(args: argparse.Namespace, page: "Page") -> int:
     app = args.app
     py = os.environ.get("PY", ".venv/bin/python")
 
@@ -202,6 +255,8 @@ def main() -> int:
     first = post_tick(args.port, app)
     page.push("note", f"tick returned {first.get('action_taken')} — {verdict(first)}")
     if not expect(page, first, "HOLD", "4a"):
+        restore_track(page, app)
+        time.sleep(3.0)
         stop.set()
         return 3
     time.sleep(args.dwell)
@@ -230,6 +285,8 @@ def main() -> int:
                       f"— {verdict(second)}")
     api = second.get("inputs", {})
     if not expect(page, second, "HALT", "4c"):
+        restore_track(page, app)
+        time.sleep(3.0)
         stop.set()
         return 3
     page.push("note", f"decision {second['decision_id']}")

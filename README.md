@@ -91,7 +91,10 @@ What has been exercised, and what has not, as of 2026-08-13:
   independent read of the API three seconds after the write. The clock in the corner is
   the browser's and never stops, which is how someone who was not there can check that
   nothing was cut. Fixtures are the default, so the same command rehearses it with no
-  credential.
+  credential. A take that stops on a beat that did not happen puts the release back to
+  `halted` itself and says so on camera, which was proved against the real API on
+  2026-08-13: resume as edit `04142531536641645176`, the driver's own undo as edit
+  `05826247871260134620` eighteen seconds later, and a second call wrote nothing.
 - **The narration, spoken and measured.** `python demo/narrate.py` reads the shooting
   script in `notes/demo-script.md`, speaks its eleven cues with a local model, and lays
   them on the video's own clock: a 3:55 audio bed, subtitles that match it, and one wav

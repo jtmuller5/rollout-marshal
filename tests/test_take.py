@@ -149,3 +149,104 @@ def test_a_beat_that_did_not_happen_stops_the_take():
     assert said[0][0] == "error"
     assert "4c expected HALT" in said[0][1]
     assert "recording is kept" in said[0][1]
+
+
+class _Recorder:
+    """A page that keeps what was pushed to it."""
+
+    def __init__(self) -> None:
+        self.said: list[tuple] = []
+
+    def push(self, kind, text="", data=None):
+        self.said.append((kind, text))
+
+
+def _wire(monkeypatch, client, package="com.example.app", track="alpha"):
+    """Point the driver's own imports at a client and a policy of our choosing."""
+    import rollout_marshal.play as play
+    import rollout_marshal.store as store
+
+    class Policy:
+        pass
+
+    policy = Policy()
+    policy.package, policy.track = package, track
+    monkeypatch.setattr(play, "build_play_client", lambda: client)
+    monkeypatch.setattr(store, "build_store", lambda: type("S", (), {
+        "get_policy": staticmethod(lambda app: policy)})())
+
+
+def _real_client(status: str, fraction: float):
+    """A RealPlayClient with the two API calls replaced, so nothing leaves the process."""
+    from rollout_marshal.models import TrackState
+    from rollout_marshal.play import RealPlayClient
+
+    client = RealPlayClient(key_path="/dev/null")
+    client.writes = []
+    state = TrackState(package="com.example.app", track="alpha", release_name="1.0.121",
+                       version_codes=["121"], status=status, user_fraction=fraction, raw={})
+
+    def get_track(package, track):
+        return client.state
+
+    def set_release(package, track, release):
+        client.writes.append(release)
+        client.state = TrackState(
+            package=package, track=track, release_name=release["name"],
+            version_codes=release["versionCodes"], status=release["status"],
+            user_fraction=float(release.get("userFraction") or 0.0), raw={},
+        )
+        return {"edit_id": "edit-1"}
+
+    client.state = state
+    client.get_track = get_track
+    client.set_release = set_release
+    return client
+
+
+def test_an_aborted_live_take_puts_the_track_back(monkeypatch):
+    """The one piece of state a failed take must not leave behind.
+
+    Shot 4 starts from a resumed release. A take that dies at the halt — the free
+    tier's 429 is how — leaves it rolling out at 20% to real devices on the track.
+    """
+    import drive_take
+
+    client = _real_client("inProgress", 0.2)
+    _wire(monkeypatch, client)
+    page = _Recorder()
+    drive_take.restore_track(page, "bakedown")
+
+    assert [w["status"] for w in client.writes] == ["halted"]
+    assert client.writes[0]["userFraction"] == 0.2
+    assert "put back to halted at 20%" in page.said[0][1]
+    assert "edit-1" in page.said[0][1]
+
+
+def test_a_take_that_reached_the_halt_is_left_alone(monkeypatch):
+    """A successful take ends halted. The undo must not fire on it."""
+    import drive_take
+
+    client = _real_client("halted", 0.2)
+    _wire(monkeypatch, client)
+    page = _Recorder()
+    drive_take.restore_track(page, "bakedown")
+
+    assert client.writes == []
+    assert "nothing to put back" in page.said[0][1]
+
+
+def test_the_undo_never_writes_through_a_fixture_client(monkeypatch):
+    """Whatever went wrong, a rehearsal must not reach a store account."""
+    import drive_take
+    import rollout_marshal.play as play
+
+    fixture = play.FixturePlayClient(Path("/dev/null"))
+    calls: list = []
+    fixture.set_release = lambda *a, **k: calls.append(a)  # type: ignore[method-assign]
+    _wire(monkeypatch, fixture)
+    page = _Recorder()
+    drive_take.restore_track(page, "bakedown")
+
+    assert calls == []
+    assert page.said == []
