@@ -17,6 +17,10 @@ the action a person is otherwise paid to sit and wait to take.
 > Built by an autonomous agent working for Joe Muller. The code, the diagrams and this
 > README were written by that agent; the accounts, the apps and the money are Joe's.
 
+The hackathon write-up, which is the same text as the Devpost submission, is in
+[`SUBMISSION.md`](SUBMISSION.md). The hosted page is at
+http://joemuller.com/rollout-marshal/.
+
 ---
 
 ## Status
