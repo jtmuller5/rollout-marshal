@@ -1,6 +1,6 @@
 # Rollout Marshal: the Devpost write-up
 
-The text of the submission, kept in the repo rather than only in the form, so every claim
+The text of the submission, kept in the repo and not only in the form, so every claim
 sits beside the code that has to back it and a run that changes a number changes this file
 too.
 
@@ -12,7 +12,7 @@ action on it rather than reporting on it.
 |---|---|
 | Hosted project | http://joemuller.com/rollout-marshal/ |
 | Repository | https://github.com/jtmuller5/rollout-marshal (MIT) |
-| Architecture diagram | On the hosted page, and in `README.md` as mermaid it is rendered from |
+| Architecture diagram | On the hosted page, rendered from the mermaid in `README.md` |
 | Demo video | Recorded to the shooting script in `notes/demo-script.md`. Link goes here at submission. |
 | Spin-up | `README.md`, four commands from `git clone`, no credentials |
 | Build write-up (bonus) | http://joemuller.com/rollout-marshal/build-log/, source in `notes/build-writeup.md` |
@@ -34,7 +34,7 @@ one was the rule, and halt the release. It was halted by hand within hours. The 
 was not the halt itself, which took a couple of minutes. It was a person checking a
 dashboard on a schedule for something that usually has not happened.
 
-That is work an agent should do rather than advise on. The evidence arrives on its own
+That is work an agent should do instead of advise on. The evidence arrives on its own
 schedule over several days, the decision is small and repeats, and the useful output is a
 write to a store account instead of a paragraph telling somebody to go and make one.
 
@@ -55,7 +55,7 @@ What it is doing when it halts is committing a Play edit against a real store ac
 took `com.mullr.abis_recipes` on the `alpha` track from `inProgress` at 20% to `halted`,
 committing edit `06187374055212919847`. The write took 3 seconds of a 58-second tick; the
 rest was model latency. That is in the decision log, and the hosted page is generated out
-of that log rather than typed.
+of that log instead of typed by hand.
 
 Four things it does that a cron job with an if-statement does not:
 
@@ -73,18 +73,19 @@ Four things it does that a cron job with an if-statement does not:
 
 ## How we built it
 
-The service is one Cloud Run container holding four parts that do not know much about each
-other.
+The service is one container holding four parts that do not know much about each other.
+It is built for Cloud Run and runs by hand today, because the project has no billing
+account.
 
 **The agent** is an ADK `LlmAgent` on Gemini 3.5 Flash with four function tools bound to
 one tick: read the Play state, read the crash feed, read the policy, propose an action. It
-is told to reach one proposal per tick with its reasoning attached. Today it runs through
-the Gemini API on a project with billing switched off; on Cloud Run the same ADK client
-reads the model from Vertex AI, which is a credential change and not a code change.
+is told to reach one proposal per tick with its reasoning attached. It runs through the Gemini API on a project with billing
+switched off. The same ADK client can read the model from Vertex AI instead, which is a
+credential change and not a code change, but this project has never run that path.
 
 **The gate** is plain Python with no I/O, no clock and no text input. It takes the policy,
 the rollout and the reading as values and returns allowed or refused with a reason. That
-purity is the reason every rule in it is asserted in the test suite rather than demoed. The
+purity is the reason every rule in it is asserted in the test suite instead of demoed. The
 model never reaches the Play API: the gate does, through an executor that is the only
 module in the repo permitted to perform a store write.
 
@@ -100,7 +101,7 @@ whole demo with no credential and cannot touch a store account by accident. It i
 made the real halt cheap to reach: the fixture and the live Play client are the same
 interface, so switching to the real one was a variable rather than a rewrite.
 
-The demo is a shell script, not a sequence a presenter has to remember. `bash
+The demo is a shell script, so no presenter has to remember a sequence. `bash
 demo/run_demo.sh` declares the policy, seeds a track at 20%, runs a quiet tick that ends in
 a refusal and a hold, injects the spike, runs a second tick that halts, and reads the
 decision log back.
@@ -115,7 +116,7 @@ decision log back.
   session rate and the session count the floor is measured against.
 - **Firestore**, for the policy, the rollout and the decision log.
 - **Fixtures** in `demo/fixtures/`: quiet, spike and healthy. They are the readings the demo
-  runs on, and the honesty rule around them is enforced in code, not by care: a page
+  runs on, and the honesty rule around them is enforced in code and not by care: a page
   published from a fixture run says so in the same place the real one names the Play edit
   id.
 
@@ -151,7 +152,7 @@ part of the record.
 - **The demo is one command and it is not a script in the theatrical sense.** `bash
   demo/run_demo.sh` reaches the halt end to end, and the tests run that script itself and
   read it shot by shot, so the take cannot drift from the code.
-- **93 tests, about six seconds, from a clean clone with no credentials.** They cover the
+- **106 tests, about six seconds, from a clean clone with no credentials.** They cover the
   gate rule by rule, a whole tick with every collaborator faked, the CLI, the HTTP surface,
   the published page and the recorder. Two of them read the numbers out of the fixtures and
   require the shooting script to still speak them, so editing a fixture without the
@@ -189,7 +190,7 @@ declaration impossible to skip and impossible to edit while a release is running
 - The Cloud Run deploy and the Cloud Scheduler heartbeat, both of which wait on a billing
   account rather than on code. The image builds and runs today.
 - The Shorebird hotfix patch. Halting stops the bleeding; a Dart-only patch is the other
-  half of the loop, and it is drawn as not built in the diagram rather than implied.
+  half of the loop, and the diagram marks it as not built instead of implying it.
 - More than one app per scheduler job, which the state model already allows because every
   tick reads its own facts.
 
@@ -199,7 +200,7 @@ declaration impossible to skip and impossible to edit while a release is running
 · Cloud Run · Cloud Scheduler · Secret Manager · FastAPI · uvicorn · Python 3.13 · Google
 Play Developer API v3 · Sentry release health · Shorebird · Docker
 
-The three required technologies are load-bearing rather than added to qualify: Gemini 3.5
+The three required technologies are load-bearing and not added to qualify: Gemini 3.5
 reads the evidence and picks the action, ADK carries the tools and the refusal loop, and
 Firestore holds the policy and the audit trail a multi-day rollout has nowhere else to
 live.

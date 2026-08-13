@@ -1,4 +1,4 @@
-# The demo script — what the judge sees, in order
+# The demo script: what the judge sees, in order
 
 `notes/demo-shot-list.md` decides the cut and why. This file is the thing you read on the
 day: the narration word for word, the command typed at each beat, and the state the
@@ -12,7 +12,7 @@ list needs the correction.
 453 words on the branch-B cut and 464 on branch A, of which only one version of shot 5 is
 spoken. It is not an estimate: `python demo/narrate.py` reads this file, speaks every
 line, and measures it. Branch B is **2:55 of talking inside 3:55 of video**, and the 60
-seconds of difference is deliberate — it is the model thinking in 4c and the Play Console
+seconds of difference is deliberate. It is the model thinking in 4c and the Play Console
 refreshing. Do not fill it.
 
 The total has not moved and may not: shot 3 grew by ten seconds for the isolation panel,
@@ -39,7 +39,7 @@ than losing the point it was aimed at, because the repo is submitted alongside t
 | "It files the fix and patches it out" | The Shorebird patch path is not built and is marked as such in the README. | old shot 6 |
 
 The Cloud Run claim in shot 5 has two versions below. Read the branch note there before
-recording — it is the one place where a blocked task costs presentation score.
+recording, because it is the one place where a blocked task costs presentation score.
 
 ## Before the recorder starts
 
@@ -60,13 +60,13 @@ recording — it is the one place where a blocked task costs presentation score.
    It writes `narration/narration.wav`, a 3:55 bed with every line already at the
    position its heading gives it, `narration.srt` to match, and one wav per cue. Lay the
    bed under the cut and the picture follows the words rather than the other way round.
-   **A non-zero exit means a beat has more words than its window holds** — fix the
-   script, not the mix. Any cue can be replaced by a human read of the same line without
+   **A non-zero exit means a beat has more words than its window holds.**
+   Fix the script, not the mix. Any cue can be replaced by a human read of the same line without
    disturbing the rest, because each is its own file; only re-time that one.
 
 **The morning of, at least 8 hours before the take**
 
-3. `MARSHAL_PLAY=live python demo/live_alpha.py set inProgress 0.2` — resumes the alpha
+3. `MARSHAL_PLAY=live python demo/live_alpha.py set inProgress 0.2` resumes the alpha
    release so shot 4 has something to halt. Play will not take a release off a track, so
    this is the only way back to the starting state and there is no undo other than
    `set halted <fraction>`.
@@ -80,7 +80,7 @@ recording — it is the one place where a blocked task costs presentation score.
 
 5. `git status --short` clean, and the README diagram matching the code, because shot 3
    holds it on screen.
-6. `MARSHAL_PLAY=live python demo/live_alpha.py read` — confirm `inProgress`, `0.2`.
+6. `MARSHAL_PLAY=live python demo/live_alpha.py read`, to confirm `inProgress`, `0.2`.
 7. `ss -tln | grep -c ":8811"` returns 0, then start the service with the live wiring:
 
    ```bash
@@ -97,7 +97,7 @@ recording — it is the one place where a blocked task costs presentation score.
 
 Left half: the browser, Play Console. Right half: one terminal, two panes.
 
-**Right-top — the agent, live.** This is the pane the judge reads, so it is not raw SSE:
+**Right-top: the agent, live.** This is the pane the judge reads, so it is not raw SSE:
 
 ```bash
 curl -sN http://127.0.0.1:8811/stream \
@@ -108,7 +108,7 @@ curl -sN http://127.0.0.1:8811/stream \
 Verified against a real run: 22 events across the two ticks, one line each, ending
 `TICK  tick complete: HALT (decisions/…)`.
 
-**Right-bottom — where you type.** Three commands go in it during the take, and nothing
+**Right-bottom: where you type.** Three commands go in it during the take, and nothing
 else. Clear it first; a scrollback of failed attempts is the one thing that makes an
 unedited take look rehearsed in the wrong direction.
 
@@ -209,7 +209,7 @@ halted:
 
 #### 4d · The audit trail and the email · ~20s
 
-**You type:** `.venv/bin/python demo/show_decisions.py bakedown` — then open the newest
+**You type:** `.venv/bin/python demo/show_decisions.py bakedown`, then open the newest
 `decisions/…` document in the Firestore console and scroll it once, slowly.
 
 > Every input it used, what it proposed, what the gate allowed, the edit the store
@@ -220,7 +220,7 @@ Show the email last, with a visible timestamp after the halt.
 
 ### 5 · It runs on Google Cloud · 3:26–3:44 · *30%*
 
-**Branch A — Cloud Run deployed** (needs #1035; use this if it exists on the day):
+**Branch A, Cloud Run deployed** (needs #1035; use this if it exists on the day):
 
 Four pans: the service page and its `.run` URL, the request log entry for the tick just
 recorded, the Firestore documents, the container image in Artifact Registry.
@@ -229,7 +229,7 @@ recorded, the Firestore documents, the container image in Artifact Registry.
 > the request log for the tick you just watched. Firestore holds the policy and the
 > decision log. The Play service account key is in Secret Manager and never in the image.
 
-**Branch B — not deployed.** Then the words above are unavailable and so is the Cloud Run
+**Branch B, not deployed.** Then the words above are unavailable and so is the Cloud Run
 pan. Show the Firestore console with the documents that tick wrote, and the container
 running locally from the same Dockerfile:
 

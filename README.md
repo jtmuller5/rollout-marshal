@@ -10,7 +10,7 @@ number that was written down *before* the release went out, and then acts on the
 account: widen the stage, halt the rollout, or ship a Dart-only hotfix through Shorebird.
 It emails the human afterwards, not before.
 
-Its output is a store write rather than a recommendation. Halting a rollout is irreversible
+It ends in a store write, not a recommendation. Halting a rollout is irreversible
 in the sense that matters, because the users who already updated have the build, and it is
 the action a person is otherwise paid to sit and wait to take.
 
@@ -47,9 +47,9 @@ them one at a time:
 
 | Variable | Default | The real thing |
 |---|---|---|
-| `MARSHAL_BRAIN` | `scripted` | `adk` — Gemini 3.5 through ADK |
-| `MARSHAL_PLAY` | `fixture` | `live` — Play Developer API writes |
-| `MARSHAL_CRASH_FEED` | `fixture` | `sentry` — live release health |
+| `MARSHAL_BRAIN` | `scripted` | `adk`, Gemini 3.5 through ADK |
+| `MARSHAL_PLAY` | `fixture` | `live`, Play Developer API writes |
+| `MARSHAL_CRASH_FEED` | `fixture` | `sentry`, live release health |
 | `MARSHAL_STORE` | `file` | `firestore` |
 
 What has been exercised, and what has not, as of 2026-08-13:
@@ -67,7 +67,7 @@ What has been exercised, and what has not, as of 2026-08-13:
   Firestore carries that edit id. The call sequence is written up in
   `notes/play-write-path.md`.
 - **Firestore, for real.** `MARSHAL_STORE=firestore` runs the whole of shot 4 against a
-  live database on project `gen-lang-client-0325469250` — policy, rollout, the halt, and
+  live database on project `gen-lang-client-0325469250`: policy, rollout, the halt, and
   the append-only decision log read back. It is on the free tier and cannot bill. The one
   composite index it needs is in `firestore.indexes.json`.
 - **The container, for real.** `docker build` produces a 251 MB image; running it serves
@@ -75,15 +75,15 @@ What has been exercised, and what has not, as of 2026-08-13:
 - **Not yet: the Cloud Run deploy and Cloud Scheduler.** Both APIs refuse to enable on a
   project with no billing account, and the loop's spend cap is $0.00, so this waits on
   Joe. `notes/deploy.md` has the measurement and the exact commands.
-- **The project page, built from the log rather than typed.**
+- **The project page, generated from the log.**
   `python -m rollout_marshal.cli publish --app bakedown` reads the policy, the rollout and
   every decision out of whatever store the environment points at, and writes
   `docs/index.html`. Published against Firestore, the page leads with the live halt and
   the Play edit id that halt committed; published after `demo/run_demo.sh`, the same page
   says fixture in the same words. It refuses to build when the log is empty, so it cannot
   keep claiming a halt that has stopped happening. GitHub Pages serves `docs/`.
-- **The take, recorded rather than described.** `bash demo/record_take.sh` films shot 4 —
-  the refused widen, the injected spike, the halt, the audit trail — to an mp4, with no
+- **The take, recorded rather than described.** `bash demo/record_take.sh` films shot 4 (the
+  refused widen, the injected spike, the halt, the audit trail) to an mp4, with no
   camera and no desktop: a browser on a virtual X display, `ffmpeg` reading that display,
   and the real service driving the page. Run live on 2026-08-13 it produced a 78-second
   continuous capture in which Gemini's own reasoning, the gate's verdict and Play edit
@@ -96,17 +96,17 @@ What has been exercised, and what has not, as of 2026-08-13:
   2026-08-13: resume as edit `04142531536641645176`, the driver's own undo as edit
   `05826247871260134620` eighteen seconds later, and a second call wrote nothing.
 - **The narration, spoken and measured.** `python demo/narrate.py` reads the shooting
-  script in `notes/demo-script.md`, speaks its eleven cues with a local model, and lays
+  script in `notes/demo-script.md`, speaks its twelve cues with a local model, and lays
   them on the video's own clock: a 3:55 audio bed, subtitles that match it, and one wav
   per line so any of them can be replaced by a human read without re-timing the rest.
-  Measured on 2026-08-13, the branch-B cut is 2:46 of talking inside 3:55, and the tool
-  exits non-zero when a beat has more words than its heading allows — which it did, twice,
-  and the script was shortened rather than the pauses. The script is now the timing sheet
-  as well as the prose, so `tests/test_narration.py` holds its headings to tiling shot 4's
-  window exactly. Synthesis needs a speech model that is deliberately not a dependency of
+  Measured on 2026-08-13, that is 453 spoken words across nine beats inside 3:55, and the
+  tool exits non-zero when a beat has more words than its heading allows. It did that
+  twice, and the script was shortened instead of the pauses. The script is now the timing
+  sheet as well as the prose, so `tests/test_narration.py` holds its headings to tiling
+  shot 4's window exactly. Synthesis needs a speech model that is deliberately not a dependency of
   this repo; `--dry-run` budgets the cut with the standard library alone.
 - **The cut, assembled from the same clock.** `python demo/assemble.py` reads the shooting
-  script's windows — the ones the narration is already laid on — and fills each with the
+  script's windows, the ones the narration is already laid on, and fills each with the
   picture named in `demo/cut.json`, so the voice and the picture cannot drift apart. A shot
   nobody has filmed yet becomes a placeholder card saying who owes it, which keeps the cut
   full length and makes swapping the real shot in a one-line change. It refuses two things
@@ -124,7 +124,7 @@ what the video needs.
 ### The tests
 
 ```bash
-.venv/bin/python -m pytest tests -q      # 93 tests, about six seconds, from the repo root
+.venv/bin/python -m pytest tests -q      # 106 tests, about six seconds, from the repo root
 ```
 
 `pytest` is in `requirements-dev.txt` rather than `requirements.txt`, so a runtime install
@@ -141,7 +141,7 @@ client must never be reported as a real edit. One of them parses the node labels
 the README's mermaid blocks and looks for each of them in the SVG beside it, so a diagram
 that renders but says the wrong thing fails here.
 
-Two of them are about the recording rather than the code. The shooting script speaks the
+Two of them are about the recording, not the code. The shooting script speaks the
 halt number and the session counts out loud, so `tests/test_demo_path.py` reads those
 numbers out of the fixtures and the `policy set` flags, and requires
 `notes/demo-script.md` to still say them. Edit a fixture without them and every test
@@ -156,10 +156,10 @@ directory.
 ## Architecture
 
 The diagram draws what has run, not what is planned. The three groups say where a box is:
-inside the container, on Google Cloud, or designed and not yet deployed. Every **dashed**
-box is in that last group — the project has no billing account, so Cloud Run, Cloud
-Scheduler and Secret Manager refuse to enable on it (the Status list above, and
-`notes/deploy.md`). Today the container is started by hand and the tick is an HTTP POST.
+inside the container, on Google Cloud, or designed and not yet deployed. Every dashed box
+is in that last group. The project has no billing account, so Cloud Run, Cloud Scheduler
+and Secret Manager refuse to enable on it (the Status list above, and `notes/deploy.md`).
+Today the container is started by hand and the tick is an HTTP POST.
 
 ```mermaid
 flowchart TB
@@ -307,7 +307,7 @@ watching" reviewable after the fact, and it is what the demo video reads from.
 
 ## Required technologies
 
-The contest requires all three. Each one is load-bearing here rather than added to qualify.
+The contest requires all three. Each one is load-bearing here, not added to qualify.
 
 | Requirement | How it is met | Why it is not decoration |
 |---|---|---|
@@ -316,7 +316,7 @@ The contest requires all three. Each one is load-bearing here rather than added 
 | A Google Cloud infrastructure service | Firestore, live and holding every decision the agent has made. Cloud Run, Cloud Scheduler and Secret Manager are designed and blocked on billing. | The policy, the rollout state and the audit trail outlive any one tick, and a rollout takes days. There is nowhere for that state to live inside the process. |
 
 Everything above sits inside free tiers: Firestore on Spark, the Gemini API on a project
-with billing switched off, and — once it can be enabled — Cloud Run scaled to zero and
+with billing switched off, and, once it can be enabled, Cloud Run scaled to zero and
 Cloud Scheduler's first three jobs.
 
 ## Repository layout
@@ -349,7 +349,7 @@ requirements-dev.txt  the same, plus pytest, for the suite above
 notes/            the shot list, the measured Play write path, the experiment log
 ```
 
-The package is `rollout_marshal` rather than `marshal` because `marshal` is a Python
+The package is `rollout_marshal` instead of `marshal` because `marshal` is a Python
 built-in module and shadows any package of that name.
 
 ## Licence

@@ -253,7 +253,7 @@ def render(facts: dict[str, Any], assets: Path | None = None) -> str:
      <code>{_e(li.get('package'))}</code> on the <code>{_e(li.get('track'))}</code>
      track, which went from <code>{_e(li.get('status'))}</code> at
      {_e(li.get('user_fraction'))} to <code>halted</code>. Nobody pressed anything.</p>
-  <p class="note">A closed testing track, so the build had testers on it and no paying
+  <p class="note">A closed testing track, so the build had no testers on it and no paying
      customers. The crash reading in that tick came from
      <code>{_e(li.get('crash_source'))}</code>; the store write did not.</p>
 </div>"""
@@ -353,7 +353,7 @@ accident cannot reach a store account.</p>
 
 <footer>
 <p><a href="{REPO}">github.com/jtmuller5/rollout-marshal</a> · MIT ·
-Gemini 3.5 · ADK · Cloud Run · Firestore ·
+Gemini 3.5 · ADK · Firestore ·
 <a href="build-log/">how it was built</a></p>
 <p>Published {_e(facts['published_at'])} from {len(facts['decisions'])} decisions in
 {_e(facts['store'])}. Rebuilt by <code>python -m rollout_marshal.cli publish --app
