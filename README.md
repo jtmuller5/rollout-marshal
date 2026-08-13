@@ -38,7 +38,7 @@ bash demo/run_demo.sh
 
 Those four commands were run against a fresh clone on 2026-08-13, on Python 3.13 and an
 empty environment: the install takes a few seconds, the demo prints the halt and exits 0,
-and the tests pass in about two seconds. `pip install -r requirements-dev.txt` in a
+and the tests pass in about six seconds. `pip install -r requirements-dev.txt` in a
 `python -m venv` works the same way if you would rather not install `uv`.
 
 That runs on a clean checkout with no credentials at all, because every outside edge has
@@ -124,7 +124,7 @@ what the video needs.
 ### The tests
 
 ```bash
-.venv/bin/python -m pytest tests -q      # 79 tests, about three seconds, from the repo root
+.venv/bin/python -m pytest tests -q      # 93 tests, about six seconds, from the repo root
 ```
 
 `pytest` is in `requirements-dev.txt` rather than `requirements.txt`, so a runtime install

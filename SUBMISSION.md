@@ -150,7 +150,7 @@ part of the record.
 - **The demo is one command and it is not a script in the theatrical sense.** `bash
   demo/run_demo.sh` reaches the halt end to end, and the tests run that script itself and
   read it shot by shot, so the take cannot drift from the code.
-- **55 tests, about two seconds, from a clean clone with no credentials.** They cover the
+- **93 tests, about six seconds, from a clean clone with no credentials.** They cover the
   gate rule by rule, a whole tick with every collaborator faked, the CLI, the HTTP surface,
   the published page and the recorder. Two of them read the numbers out of the fixtures and
   require the shooting script to still speak them, so editing a fixture without the
