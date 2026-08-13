@@ -68,6 +68,26 @@
              display: flex; align-items: center; padding: 0 70px; font-size: 30px; }
   #caption .tag { color: var(--warn); margin-right: 26px; letter-spacing: .18em; }
 
+  /* shot 3's last beat — the proof panel, over the diagram */
+  /* It stops above the caption band, so the last beat reads like the three before it. */
+  #proof { position: absolute; inset: 0 0 120px 0; background: var(--bg); display: none;
+           padding: 54px 110px 20px; }
+  #proof.on { display: flex; flex-direction: column; justify-content: center; }
+  #proof .big { font-size: 46px; margin: 16px 0 6px; }
+  #proof .big .n { color: var(--ok); }
+  #proof .cmd { color: var(--dim); font-size: 24px; }
+  #proof .edges { margin-top: 40px; border: 1px solid var(--line);
+                  background: var(--panel); }
+  #proof .edge { display: flex; align-items: baseline; gap: 26px; padding: 15px 34px;
+                 border-bottom: 1px solid var(--line); font-size: 26px; }
+  #proof .edge:last-child { border-bottom: 0; }
+  #proof .edge .var { width: 300px; color: var(--fg); }
+  #proof .edge .def { width: 180px; color: var(--ok); }
+  #proof .edge .live { color: var(--dim); }
+  #proof .edge .live b { color: var(--warn); font-weight: 400; }
+  #proof .pfoot { margin-top: 30px; color: var(--dim); font-size: 21px;
+                  line-height: 1.6; }
+
   /* shot 6 — the disclosure */
   #shot6 { display: none; }
   #shot6.on { display: flex; flex-direction: column; justify-content: center;
@@ -91,6 +111,13 @@
   <div id="diagram"></div>
   <div id="ring"></div>
   <div id="caption"><span class="tag" id="c-tag"></span><span id="c-text"></span></div>
+  <div id="proof">
+    <div class="eyebrow">tools isolated, and proved</div>
+    <div class="big"><span class="n" id="t-passed">—</span> tests pass<span id="t-secs"></span></div>
+    <div class="cmd" id="t-cmd"></div>
+    <div class="edges" id="e-rows"></div>
+    <div class="pfoot" id="p-proof-foot"></div>
+  </div>
 </div>
 
 <div class="shot" id="shot6">
@@ -161,9 +188,47 @@ function nodeFor(key) {
   return null;
 }
 
+// The last beat of shot 3. Everything on it was read at record time by shot_data.py —
+// the test count from a run that had just finished, the defaults from the lines of code
+// that apply them. The page holds no number of its own.
+function renderProof(d) {
+  const t = d.tests || {};
+  el("t-passed").textContent = t.passed ?? "—";
+  el("t-secs").textContent = t.seconds ? ", in " + t.seconds + " seconds" : "";
+  el("t-cmd").textContent = t.command || "";
+  const box = el("e-rows");
+  box.innerHTML = "";
+  for (const e of d.edges || []) {
+    const row = document.createElement("div");
+    row.className = "edge";
+    const v = document.createElement("span");
+    v.className = "var"; v.textContent = e.var;
+    const def = document.createElement("span");
+    def.className = "def"; def.textContent = e.default;
+    const live = document.createElement("span");
+    live.className = "live";
+    live.textContent = "set it to ";
+    const b = document.createElement("b");
+    b.textContent = e.live;
+    live.append(b, document.createTextNode(" for " + (e.real || "the real one")));
+    row.append(v, def, live);
+    box.appendChild(row);
+  }
+  el("p-proof-foot").textContent = d.proof_foot || "";
+}
+
 function highlight(beat) {
   const box = el("diagram");
   const ring = el("ring");
+  if (beat.panel === "proof") {
+    renderProof(data);
+    el("proof").classList.add("on");
+    ring.style.opacity = 0;
+    el("c-tag").textContent = beat.tag || "";
+    el("c-text").textContent = beat.caption || "";
+    return;
+  }
+  el("proof").classList.remove("on");
   const node = beat.node ? nodeFor(beat.node) : null;
   if (beat.node && !node) {
     // Loud rather than quiet: a renamed node would otherwise ring nothing at all.

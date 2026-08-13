@@ -73,8 +73,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
+EXTRA=()
+if [ "$SHOT" = "3" ]; then
+  # The panel says how many tests pass. That number is the output of a run made a few
+  # seconds before the camera, never a literal in the page or in shot_data.py, and a red
+  # suite stops the recording here rather than going on camera.
+  rule "the suite, so the panel has a number that came from a run"
+  TESTS="$OUT-pytest.txt"
+  $PY -m pytest tests -q >"$TESTS" 2>&1 || { tail -20 "$TESTS" >&2; exit 1; }
+  tail -1 "$TESTS"
+  EXTRA=(--tests "$TESTS")
+fi
+
 rule "what this shot shows"
-$PY demo/take/shot_data.py --shot "$SHOT" --app "$APP" --out "$DATA"
+$PY demo/take/shot_data.py --shot "$SHOT" --app "$APP" --out "$DATA" ${EXTRA[@]+"${EXTRA[@]}"}
 WINDOW="$($PY -c 'import json,sys; print(json.load(open(sys.argv[1]))["window"])' "$DATA")"
 LENGTH="$($PY -c 'import sys; print(float(sys.argv[1]) + float(sys.argv[2]))' "$WINDOW" "$SLACK")"
 

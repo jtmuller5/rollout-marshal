@@ -74,10 +74,13 @@ cost in hours and not only show the write.
 | Tools isolated and scoped for security | The model holds no store credential. It proposes; `executor.py` is the only module permitted to write, and it writes only what the gate allowed. The service account for Firestore holds `roles/datastore.user` and nothing else; the Gemini key is restricted to `generativelanguage.googleapis.com` on a project with billing disabled. | Shot 3, and `notes/deploy.md` |
 | Failure tolerance | The refusal is a tool result the agent must answer, not a boolean. A take that stops on a beat that did not happen puts the Play track back itself (`restore_track`). The published page refuses to build from an empty log. | `tests/test_tick.py`, `tests/test_take.py`, `tests/test_publish.py` |
 
-**This is the criterion the entry is strongest on and weakest at showing.** Shot 3 is 35
-seconds of diagram. Nothing in the cut shows the test suite or the four safe defaults, and
-both are the evidence for "properly isolated". The repo carries them; a judge who only
-watches will not see them.
+**The cut now shows the evidence, not only the intention** (#1079). Shot 3 runs 42 seconds
+and ends on a full-frame panel: the pytest run made seconds before the recorder started,
+and the four `MARSHAL_*` switches with the default each module actually applies. Neither
+number is typed into the page — `demo/take/shot_data.py` reads the count out of the run's
+own output and each default out of the `os.environ.get` line that applies it, and refuses
+to render a red suite or a default that has become the live edge. The ten seconds came out
+of shots 5 and 6, so the cut is still 3:55.
 
 ### Demo & Production Readiness — 30%
 
@@ -130,8 +133,8 @@ is 0.2 each.
 1. **Shot 5 is blocked on the wrong thing.** It is waiting on a Cloud Run deploy that waits
    on billing, when the Firestore console alone satisfies the wording. Highest value, and
    the only Stage One risk left.
-2. **Nothing in the video shows the tests or the safe defaults**, which are the evidence for
-   30% of the score. A five-second pan of a green suite costs less than it is worth.
+2. ~~Nothing in the video shows the tests or the safe defaults.~~ Done in #1079: shot 3's
+   last ten seconds are the isolation panel, read at record time rather than typed.
 3. **The bonus is worth up to 1.0 and none of it is built.** Two of the three are writing.
 4. **"High-value" is asserted, not measured.** The video says a person has to watch; it does
    not say for how many hours a rollout.

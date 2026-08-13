@@ -73,6 +73,55 @@ def test_the_last_beat_is_left_on_screen_long_enough_to_read():
     assert (1 - shot_data.BEATS[-1]["at"]) * window >= 2.0
 
 
+def test_the_proof_panel_is_the_last_beat_and_has_time_to_be_read():
+    """Architectural Discipline is 30% and asks for tools "properly isolated and scoped
+    for security". This panel is the only place in the cut that shows the evidence, so a
+    two-second flash of it would be worth nothing."""
+    panels = [b for b in shot_data.BEATS if b.get("panel")]
+    assert [b["panel"] for b in panels] == ["proof"]
+    assert shot_data.BEATS[-1] is panels[0], "the proof panel covers the diagram, so it goes last"
+    assert (1 - panels[0]["at"]) * shot_data.window("3") >= 6.0
+
+
+def test_every_switch_defaults_to_the_fixture_in_the_module_that_applies_it():
+    """The claim on camera is that a clone cannot reach a store account. It is read out
+    of each module rather than typed here, so the panel goes wrong loudly."""
+    found = shot_data.edges()
+    assert [e["var"] for e in found] == [e["var"] for e in shot_data.EDGES]
+    for edge in found:
+        assert edge["default"] != edge["live"]
+        assert edge["line"] > 0
+        source = (ROOT / edge["file"]).read_text().splitlines()[edge["line"] - 1]
+        assert edge["var"] in source and f'"{edge["default"]}"' in source
+
+
+def test_the_test_count_comes_from_a_run_and_a_red_suite_stops_the_shot(tmp_path):
+    green = tmp_path / "green.txt"
+    green.write_text("....\n102 passed in 6.19s\n")
+    assert shot_data.tests(green) == {
+        "passed": 102, "seconds": 6.19,
+        "command": ".venv/bin/python -m pytest tests -q",
+    }
+
+    red = tmp_path / "red.txt"
+    red.write_text("F...\n1 failed, 101 passed in 6.40s\n")
+    with pytest.raises(SystemExit):
+        shot_data.tests(red)
+
+    empty = tmp_path / "empty.txt"
+    empty.write_text("")
+    with pytest.raises(SystemExit):
+        shot_data.tests(empty)
+
+
+def test_the_page_can_render_the_proof_panel():
+    page = STILLS.read_text()
+    assert 'id="proof"' in page
+    assert "renderProof" in page
+    for hook in ("t-passed", "e-rows", "p-proof-foot"):
+        assert f'id="{hook}"' in page
+
+
 def test_the_diagram_does_not_claim_vertex_ai(architecture):
     # What has actually run is the Gemini API key. The diagram is on camera in shot 3,
     # so a claim there is a claim a judge can check.

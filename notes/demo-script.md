@@ -9,11 +9,16 @@ list and this file disagree about what the software does, this one is right and 
 list needs the correction.
 
 **Budget.** 4:00 hard, and only the first four minutes are scored. The narration below is
-429 words on the branch-B cut and 440 on branch A, of which only one version of shot 5 is
+453 words on the branch-B cut and 464 on branch A, of which only one version of shot 5 is
 spoken. It is not an estimate: `python demo/narrate.py` reads this file, speaks every
-line, and measures it. Branch B is **2:46 of talking inside 3:55 of video**, and the 69
+line, and measures it. Branch B is **2:55 of talking inside 3:55 of video**, and the 60
 seconds of difference is deliberate — it is the model thinking in 4c and the Play Console
 refreshing. Do not fill it.
+
+The total has not moved and may not: shot 3 grew by ten seconds for the isolation panel,
+and those seconds came out of shots 5 and 6, which had the most silence in them. Adding a
+window means taking one, because 4:00 is the contest's hard line and shot 4 is the
+evidence.
 
 Every heading below is therefore data as well as prose. The times in a `###` heading and
 the `~Ns` on a `####` are what put each line on the clock, `tests/test_narration.py`
@@ -136,10 +141,13 @@ title card.
 > and twenty sessions before a reading counts. A human declared this days ago, and none of
 > it is the model's to reinterpret.
 
-### 3 · What happens on a tick · 0:42–1:14 · *30%*
+### 3 · What happens on a tick · 0:42–1:24 · *30%*
 
 **Screen.** The README component diagram, held still. Highlight in sequence: the ADK
-agent, the gate, the Play client. Two-second flash of the halt-decision diagram.
+agent, the gate, the Play client. Then a flash of the halt-decision diagram, and last a
+full-frame card: the test run made minutes before this recording, and the four switches
+that decide which outside edge is real. Both numbers on that card are read at record
+time, never typed into the page.
 
 > Here is one tick. Gemini 3.5 Flash, running as an ADK agent, reads the policy, the track
 > state and the crash rate through four tools, and proposes one action. The proposal goes
@@ -148,7 +156,10 @@ agent, the gate, the Play client. Two-second flash of the halt-decision diagram.
 > no store credential.
 > Only the gate can reach the Play API. State and the audit log are Firestore.
 
-### 4 · The unedited take · 1:14–3:16 · *40%, 30%*
+> Every outside edge is off by default: a clean clone talks to fixtures, never to a store.
+> The gate's rules are all under test.
+
+### 4 · The unedited take · 1:24–3:26 · *40%, 30%*
 
 **One recording, no cut, clock visible.** Everything from here to the end of 4d is
 continuous. It has been rehearsed live: the halting tick took 58 seconds, of which the
@@ -207,7 +218,7 @@ halted:
 
 Show the email last, with a visible timestamp after the halt.
 
-### 5 · It runs on Google Cloud · 3:16–3:38 · *30%*
+### 5 · It runs on Google Cloud · 3:26–3:44 · *30%*
 
 **Branch A — Cloud Run deployed** (needs #1035; use this if it exists on the day):
 
@@ -230,7 +241,7 @@ Branch B is a scored loss, not a workaround: the rules name a visible Google Clo
 deployment as part of a criterion worth 30%. **The video should not be recorded on branch
 B unless the deadline forces it.** #1035 is the ask that clears it.
 
-### 6 · Who built it · 3:38–3:55 · *disclosure*
+### 6 · Who built it · 3:44–3:55 · *disclosure*
 
 **Screen.** A still card: the repo URL and the disclosure line.
 
