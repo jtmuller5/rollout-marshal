@@ -19,9 +19,9 @@
     },
     "3": {
       "kind": "clip",
-      "path": "takes/shot3-20260813T231835Z.mp4",
+      "path": "takes/shot3-20260814T005719Z.mp4",
       "unedited": true,
-      "_": "The README diagrams, with the ADK agent, the gate and the Play client named in turn, then the isolation panel: the test run made seconds earlier and the four switches, both read at record time. Re-render and re-record when a diagram changes: demo/record_shots.sh 3."
+      "_": "The README diagrams, with the ADK agent, the gate and the Play client named in turn, then the isolation panel: the test run made seconds earlier and the five switches, both read at record time. Re-render and re-record when a diagram changes: demo/record_shots.sh 3."
     },
     "4": {
       "kind": "clip",

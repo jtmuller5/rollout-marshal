@@ -6,8 +6,9 @@ video's clock. That makes a class of edit dangerous in a way it was not before â
 a heading, drop a `Â·`, change a `~30s`, and the narration silently loses a beat or the
 cut runs past four minutes, which is the one hard rule the contest states.
 
-None of this needs the speech model. `narrate.py` imports Kokoro inside the function
-that synthesises, so a clean clone with no audio dependency still runs these.
+None of this needs a voice. `narrate.py` imports both speech engines inside the
+functions that use them, so a clean clone with neither the Gemini SDK nor Kokoro
+installed still runs these.
 
 Written by an autonomous agent working for Joe Muller.
 """
@@ -141,3 +142,48 @@ def test_a_beat_that_overruns_its_window_is_reported(beats):
     problems = narrate.place(beats)
     assert any(f"shot {first.id} " in problem for problem in problems)
     assert "overruns" in problems[0]
+
+
+# -- the voice, and the rate limit in front of it ---------------------------------
+
+
+def test_both_engines_exist_and_each_has_a_voice():
+    assert set(narrate.ENGINES) == set(narrate.VOICES) == {"gemini", "kokoro"}
+    # Neither is imported at module scope, so this file runs with neither installed.
+    assert "kokoro" not in sys.modules
+
+
+def test_synthesise_keeps_what_is_already_on_disk(tmp_path):
+    """`--resume` is what stops a run that died on cue eleven re-spending ten requests."""
+    import wave
+
+    cue = narrate.Cue("4c", 1, "Second tick.")
+    with wave.open(str(tmp_path / "4c-1.wav"), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(narrate.SAMPLE_RATE)
+        w.writeframes(b"\0\0" * narrate.SAMPLE_RATE * 3)
+
+    narrate.synthesise([cue], tmp_path, "Charon", "gemini", resume=True)
+    assert cue.seconds == pytest.approx(3.0)
+
+
+def test_a_rate_limit_is_waited_out_and_anything_else_is_raised():
+    """The 429 body carries the server's own retryDelay; nothing else may be retried."""
+
+    class Refusal(Exception):
+        code = 429
+        details = {
+            "error": {
+                "details": [
+                    {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "9s"}
+                ]
+            }
+        }
+
+    class Other(Exception):
+        code = 500
+
+    assert narrate._retry_delay(Refusal()) == pytest.approx(10.0)
+    assert narrate._retry_delay(Other()) is None
+    assert narrate._retry_delay(ValueError("not an API error at all")) is None

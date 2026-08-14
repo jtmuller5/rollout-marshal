@@ -348,12 +348,12 @@ bash demo/run_demo.sh</code></pre>
 checkout with no credentials at all: every outside edge has a fixture behind the same
 interface as the real thing, and one environment variable each swaps them
 (<code>MARSHAL_BRAIN</code>, <code>MARSHAL_PLAY</code>, <code>MARSHAL_CRASH_FEED</code>,
-<code>MARSHAL_STORE</code>). The defaults are the safe ones, so running the service by
-accident cannot reach a store account.</p>
+<code>MARSHAL_STORE</code>, <code>MARSHAL_SCRIBE</code>). The defaults are the safe ones,
+so running the service by accident cannot reach a store account.</p>
 
 <footer>
 <p><a href="{REPO}">github.com/jtmuller5/rollout-marshal</a> · MIT ·
-Gemini 3.5 · ADK · Firestore ·
+Gemini 3.5 · Gemma 4 · Gemini TTS · ADK · Firestore ·
 <a href="build-log/">how it was built</a></p>
 <p>Published {_e(facts['published_at'])} from {len(facts['decisions'])} decisions in
 {_e(facts['store'])}. Rebuilt by <code>python -m rollout_marshal.cli publish --app

@@ -124,9 +124,17 @@ better.** Both text bonuses require the disclosure sentence — "you created the
 content for the purposes of entering this hackathon" — or they are not scored. Publishing
 either is an outward action and Joe's to press.
 
-The cheapest extra model is the one already in the pipeline: the narration is spoken by
-Kokoro, which is not Google. Swapping it, or adding a Gemma summary of the decision log,
-is 0.2 each.
+**Two of the three extra-model slots are filled** (2026-08-14). `gemma-4-31b-it` writes
+the opening paragraph of the email the agent sends after it acts, in
+`rollout_marshal/scribe.py`; `gemini-2.5-flash-preview-tts` speaks the twelve narration
+cues, in `demo/narrate.py`, replacing Kokoro, which is not Google. Both are on the key
+already held, on a project with billing disabled, and each has its own free-tier quota,
+so neither competes with the twenty `gemini-3.5-flash` requests a live take costs.
+`SUBMISSION.md` claims both by name and says what breaks without them.
+
+The third 0.2 is unclaimed. Imagen, Veo and Lyria all answer on the same key, and none of
+them has a job in a service whose output is a store write and an email. Inventing one to
+collect 0.2 is the decoration this entry's own "not added to qualify" line rules out.
 
 ## What this map exposes, ranked
 
@@ -135,6 +143,9 @@ is 0.2 each.
    the only Stage One risk left.
 2. ~~Nothing in the video shows the tests or the safe defaults.~~ Done in #1079: shot 3's
    last ten seconds are the isolation panel, read at record time rather than typed.
-3. **The bonus is worth up to 1.0 and none of it is built.** Two of the three are writing.
+3. ~~The bonus is worth up to 1.0 and none of it is built.~~ 0.6 of it now is: the build
+   write-up is live (#1082), and two extra Google models are integrated and claimed
+   (#1091). What is left is the social post, which is Joe's to press, and a third model
+   nobody has an honest job for.
 4. **"High-value" is asserted, not measured.** The video says a person has to watch; it does
    not say for how many hours a rollout.

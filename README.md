@@ -42,7 +42,7 @@ and the tests pass in about six seconds. `pip install -r requirements-dev.txt` i
 `python -m venv` works the same way if you would rather not install `uv`.
 
 That runs on a clean checkout with no credentials at all, because every outside edge has
-a fixture behind the same interface as the real thing. Four environment variables swap
+a fixture behind the same interface as the real thing. Five environment variables swap
 them one at a time:
 
 | Variable | Default | The real thing |
@@ -51,8 +51,9 @@ them one at a time:
 | `MARSHAL_PLAY` | `fixture` | `live`, Play Developer API writes |
 | `MARSHAL_CRASH_FEED` | `fixture` | `sentry`, live release health |
 | `MARSHAL_STORE` | `file` | `firestore` |
+| `MARSHAL_SCRIBE` | `template` | `gemma`, `gemma-4-31b-it` writes the email |
 
-What has been exercised, and what has not, as of 2026-08-13:
+What has been exercised, and what has not, as of 2026-08-14:
 
 - **The agent, on the real model.** `MARSHAL_BRAIN=adk` runs the whole tick on Gemini 3.5
   Flash. On the first tick it proposed WIDEN, the gate refused it on the session floor,
@@ -66,6 +67,12 @@ What has been exercised, and what has not, as of 2026-08-13:
   seconds of the 58-second tick; the rest is model latency. The decision document in
   Firestore carries that edit id. The call sequence is written up in
   `notes/play-write-path.md`.
+- **Two more Google models, both on the same key.** `MARSHAL_SCRIBE=gemma` has
+  `gemma-4-31b-it` write the opening paragraph of the email; it took 47.1s and 49.4s on
+  the free tier, which is why the timeout is 90 seconds and why a refusal falls back to a
+  template that says so in the mail. `gemini-2.5-flash-preview-tts` spoke all twelve
+  narration cues at 24kHz, and every one was transcribed back and checked against the
+  script. That model allows three requests a minute, so `demo/narrate.py` paces itself.
 - **Firestore, for real.** `MARSHAL_STORE=firestore` runs the whole of shot 4 against a
   live database on project `gen-lang-client-0325469250`: policy, rollout, the halt, and
   the append-only decision log read back. It is on the free tier and cannot bill. The one
@@ -96,15 +103,17 @@ What has been exercised, and what has not, as of 2026-08-13:
   2026-08-13: resume as edit `04142531536641645176`, the driver's own undo as edit
   `05826247871260134620` eighteen seconds later, and a second call wrote nothing.
 - **The narration, spoken and measured.** `python demo/narrate.py` reads the shooting
-  script in `notes/demo-script.md`, speaks its twelve cues with a local model, and lays
+  script in `notes/demo-script.md`, speaks its twelve cues with Gemini 2.5 Flash TTS, and lays
   them on the video's own clock: a 3:55 audio bed, subtitles that match it, and one wav
   per line so any of them can be replaced by a human read without re-timing the rest.
   Measured on 2026-08-13, that is 453 spoken words across nine beats inside 3:55, and the
   tool exits non-zero when a beat has more words than its heading allows. It did that
   twice, and the script was shortened instead of the pauses. The script is now the timing
   sheet as well as the prose, so `tests/test_narration.py` holds its headings to tiling
-  shot 4's window exactly. Synthesis needs a speech model that is deliberately not a dependency of
-  this repo; `--dry-run` budgets the cut with the standard library alone.
+  shot 4's window exactly. Every cue was transcribed back with Whisper and checked against
+  the script it came from, because a wav of the right length is not a wav that says the
+  words. Neither speech engine is a dependency of this repo; `--dry-run` budgets the cut
+  with the standard library alone.
 - **The cut, assembled from the same clock.** `python demo/assemble.py` reads the shooting
   script's windows, the ones the narration is already laid on, and fills each with the
   picture named in `demo/cut.json`, so the voice and the picture cannot drift apart. A shot
@@ -168,6 +177,7 @@ flowchart TB
     ADK["ADK agent — Rollout Marshal<br/>Gemini 3.5 Flash"]
     GATE["Policy gate<br/>deterministic Python"]
     TOOLS["ADK FunctionTools<br/>play_state · crash_free · policy<br/>widen · halt · patch · notify"]
+    SCRIBE["Scribe — gemma-4-31b-it<br/>no tools, no credential<br/>runs after the write"]
     ADK -->|"proposes one action"| GATE
     GATE -.->|"refused + reason"| ADK
     GATE -->|"allowed"| TOOLS
@@ -176,7 +186,7 @@ flowchart TB
 
   subgraph GCP["Google Cloud — called by every tick that has run"]
     direction LR
-    GEM["Gemini API<br/>gemini-3.5-flash"]
+    GEM["Gemini API<br/>gemini-3.5-flash · gemma-4-31b-it"]
     FS[("Firestore<br/>policies · rollouts · decisions")]
   end
 
@@ -191,7 +201,7 @@ flowchart TB
   PLAY["Play Developer API v3<br/>edits.tracks get · patch · commit"]
   SENTRY["Sentry release health<br/>crash-free rate + sessions"]
   SB["Shorebird · not built<br/>Dart-only patch"]
-  MAIL["Email to the human"]
+  MAIL["Email to the human<br/>opening paragraph by Gemma"]
 
   TICK -->|"the heartbeat today"| ADK
   SCH -.->|"the heartbeat once deployed"| ADK
@@ -200,7 +210,9 @@ flowchart TB
   TOOLS <-->|"read state · write userFraction"| PLAY
   TOOLS --> SENTRY
   TOOLS -.->|"hotfix"| SB
-  TOOLS -->|"after the fact"| MAIL
+  TOOLS -->|"after the fact"| SCRIBE
+  SCRIBE --> MAIL
+  SCRIBE <--> GEM
 
   classDef ext fill:#ffffff,stroke:#777;
   classDef todo fill:#ffffff,stroke:#777,stroke-dasharray:4 3;
@@ -216,6 +228,7 @@ flowchart TB
 | ADK agent | Inside the service | Runs | Reads the evidence, states the halt number, states the measured rate, and proposes exactly one action per tick with the reasoning attached. |
 | Policy gate | Inside the service, plain Python | Runs | Re-checks the preconditions itself before any irreversible call. The model never reaches the Play API directly. |
 | Gemini 3.5 Flash | Google Cloud, Gemini API | Called by every tick | The judgement. It reads the numbers and proposes the action. |
+| Gemma 4 31B | Google Cloud, Gemini API | Called after an action | Writes the opening paragraph of the email. It has no tools and no credential, and it runs after the store write, so nothing it says can change what was done. |
 | Firestore | Google Cloud | Live, free tier | The pre-declared policy per app, the current rollout state, and an append-only decision log that is also the audit trail. |
 | The tick | `curl`, or `demo/run_demo.sh` | Runs | The heartbeat, by hand for now. One POST per app per tick. |
 | Cloud Run | Google Cloud | **Not deployed** | Would host the same container, scaled to zero. Blocked on billing, not on code. |

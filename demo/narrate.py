@@ -17,14 +17,18 @@ the slack evenly between the cues, which is right for most beats and approximate
 do quietly is overrun — a beat whose words do not fit its window is reported, with the
 overrun in seconds, and that is the number that decides whether the script is too long.
 
-The voice is synthetic and local (Kokoro, on the CPU). Joe can replace any cue with his
-own read and the timings still hold, because each cue is its own file.
+The voice is `gemini-2.5-flash-preview-tts`, which answers with 24kHz PCM — the rate
+this tool already lays its bed on, so nothing is resampled. `--tts kokoro` is the local
+CPU fallback and needs no key, which is what to use when the day's free-tier requests
+are gone. Joe can replace any cue with his own read and the timings still hold, because
+each cue is its own file.
 
-The synthesis dependency is deliberately not in `requirements.txt`. A judge cloning the
-repo runs the demo and the tests, and neither needs a speech model; `--dry-run` parses
-and budgets with the standard library alone. To synthesise on chonky:
+Neither speech dependency is in `requirements.txt`. A judge cloning the repo runs the
+demo and the tests, and neither needs a voice; `--dry-run` parses and budgets with the
+standard library alone. To synthesise:
 
-    ~/ai-server/.venv/bin/python demo/narrate.py --out narration/
+    GOOGLE_API_KEY=… ./.venv/bin/python demo/narrate.py --out narration/
+    ~/ai-server/.venv/bin/python demo/narrate.py --tts kokoro --out narration/
 
 Written by an autonomous agent working for Joe Muller.
 """
@@ -33,8 +37,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
+import time
+import wave
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -47,7 +54,25 @@ BEGIN = "## The script"
 END = "## Rules for the take"
 
 SAMPLE_RATE = 24_000
-DEFAULT_VOICE = "am_michael"
+
+# Two voices, one per engine, both at 24kHz so the bed below never resamples anything.
+GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+DEFAULT_ENGINE = os.environ.get("MARSHAL_TTS", "gemini")
+VOICES = {"gemini": "Charon", "kokoro": "am_michael"}
+
+# Three requests a minute to the TTS model on the free tier, measured 2026-08-14 from
+# the 429 body itself: quotaId GenerateRequestsPerMinutePerProjectPerModel-FreeTier,
+# quotaValue 3. Twenty-one seconds is that with a second of margin.
+TTS_GAP = 21.0
+_LAST_CALL = 0.0
+
+# Said to the model in front of every line, and to nobody in the finished audio. A
+# narrator reading a script about a crashing release will play the drama unless told
+# not to, and the shots underneath are of an agent doing its job correctly.
+DIRECTION = (
+    "Read this line as a calm, level technical narrator. Steady pace, no drama, "
+    "no rising inflection at the end. Say only the line:"
+)
 
 # `### 1 · The 2am decision · 0:00–0:22 · *40%*`  — the en dash is the script's.
 SHOT = re.compile(r"^###\s+(\d+)\s+·\s+(.*?)\s+·\s+(\d+:\d\d)[–-](\d+:\d\d)\s+·")
@@ -216,18 +241,122 @@ def srt(cues: list[Cue]) -> str:
     return "\n".join(out)
 
 
-def synthesise(cues: list[Cue], out: Path, voice: str) -> None:
-    """Fill in each cue's `seconds` and write its wav. Imported late, on purpose."""
+def _paced(call):
+    """Keep one request every `TTS_GAP` seconds, and wait out a refusal rather than fail.
+
+    The free tier allows three requests a minute to this model, per project, and the
+    script is twelve cues, so an unpaced run gets nine of them and then a 429 with the
+    ninth line already written to disk. Waiting is the only correct response to a rate
+    limit: a second key for a second allowance would be evading it.
+    """
+    global _LAST_CALL
+    for attempt in range(4):
+        wait = TTS_GAP - (time.monotonic() - _LAST_CALL)
+        if wait > 0:
+            time.sleep(wait)
+        _LAST_CALL = time.monotonic()
+        try:
+            return call()
+        except Exception as e:
+            delay = _retry_delay(e)
+            if delay is None or attempt == 3:
+                raise
+            print(f"    rate limited; waiting {delay:.0f}s", file=sys.stderr)
+            time.sleep(delay)
+    raise RuntimeError("unreachable")
+
+
+def _retry_delay(error: Exception) -> float | None:
+    """The server's own `retryDelay`, in seconds, or None if this was not a 429."""
+    if getattr(error, "code", None) != 429:
+        return None
+    for detail in (getattr(error, "details", None) or {}).get("error", {}).get("details", []):
+        if detail.get("@type", "").endswith("RetryInfo"):
+            return float(str(detail.get("retryDelay", "20s")).rstrip("s")) + 1.0
+    return TTS_GAP
+
+
+def speak_gemini(text: str, voice: str):
+    """One cue, spoken by `gemini-2.5-flash-preview-tts`. Returns float32 at 24kHz.
+
+    The model answers with raw signed 16-bit PCM at 24,000Hz, which is the rate this
+    tool already lays its bed on, so there is no resampling step to get wrong. The
+    direction in front of the line is not decoration: without it the model reads a
+    sentence about a crashing release as though it were bad news, and the shots it sits
+    over are of an agent behaving correctly.
+    """
     import numpy as np
-    import soundfile as sf
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(
+        api_key=os.environ["GOOGLE_API_KEY"],
+        http_options=types.HttpOptions(timeout=120_000),
+    )
+    def call():
+        return client.models.generate_content(
+            model=os.environ.get("MARSHAL_TTS_MODEL", GEMINI_TTS_MODEL),
+            contents=f"{DIRECTION}\n\n{text}",
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                    )
+                ),
+            ),
+        )
+
+    reply = _paced(call)
+    blob = reply.candidates[0].content.parts[0].inline_data
+    if f"rate={SAMPLE_RATE}" not in (blob.mime_type or ""):
+        raise RuntimeError(f"{blob.mime_type} is not {SAMPLE_RATE}Hz PCM")
+    return np.frombuffer(blob.data, dtype="<i2").astype("float32") / 32768.0
+
+
+def speak_kokoro(text: str, voice: str):
+    """One cue, spoken on this machine's CPU. No key, no quota, no network."""
+    import numpy as np
     from kokoro import KPipeline
 
-    pipeline = KPipeline(lang_code="a", device="cpu")
+    global _KOKORO
+    if _KOKORO is None:
+        _KOKORO = KPipeline(lang_code="a", device="cpu")
+    chunks = [chunk.audio.numpy() for chunk in _KOKORO(text, voice=voice)]
+    if not chunks:
+        raise RuntimeError("kokoro produced no audio")
+    return np.concatenate(chunks)
+
+
+ENGINES = {"gemini": speak_gemini, "kokoro": speak_kokoro}
+_KOKORO = None
+
+
+def synthesise(
+    cues: list[Cue], out: Path, voice: str, engine: str = DEFAULT_ENGINE, resume: bool = False
+) -> None:
+    """Fill in each cue's `seconds` and write its wav. Imported late, on purpose.
+
+    `resume` keeps whatever is already on disk. A run that dies on the eleventh cue has
+    ten good files and a limited number of requests left in the day, so re-speaking
+    them is the wrong instinct; it is also how a cue Joe has re-recorded himself
+    survives the next run.
+    """
+    speak = ENGINES[engine]
     for cue in cues:
-        chunks = [chunk.audio.numpy() for chunk in pipeline(cue.text, voice=voice)]
-        if not chunks:
+        path = out / f"{cue.name}.wav"
+        if resume and path.exists():
+            # `wave` rather than soundfile: measuring a file needs no audio library, so
+            # a resumed run works in an interpreter that could not have spoken it.
+            with wave.open(str(path)) as w:
+                cue.seconds = w.getnframes() / w.getframerate()
+            print(f"  {cue.name:<6} {cue.seconds:5.1f}s  (kept)")
+            continue
+        import soundfile as sf
+
+        audio = speak(cue.text, voice)
+        if len(audio) == 0:
             raise RuntimeError(f"cue {cue.name} produced no audio")
-        audio = np.concatenate(chunks)
         cue.seconds = len(audio) / SAMPLE_RATE
         sf.write(out / f"{cue.name}.wav", audio, SAMPLE_RATE)
         print(f"  {cue.name:<6} {cue.seconds:5.1f}s  {cue.text[:58]}")
@@ -253,12 +382,19 @@ def bed(cues: list[Cue], total: float, out: Path) -> float:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", default="narration", help="where the audio goes")
-    parser.add_argument("--voice", default=DEFAULT_VOICE)
+    parser.add_argument("--tts", default=DEFAULT_ENGINE, choices=tuple(ENGINES),
+                        help="gemini needs GOOGLE_API_KEY; kokoro runs on this CPU")
+    parser.add_argument("--voice", default=None,
+                        help="default depends on --tts: " + ", ".join(
+                            f"{k}={v}" for k, v in VOICES.items()))
     parser.add_argument("--branch", default="B", choices=("A", "B"),
                         help="shot 5: A is Cloud Run deployed, B is not")
+    parser.add_argument("--resume", action="store_true",
+                        help="keep any cue wav already in --out rather than re-speaking it")
     parser.add_argument("--dry-run", action="store_true",
                         help="parse and budget only; no speech model needed")
     args = parser.parse_args(argv)
+    voice = args.voice or VOICES[args.tts]
 
     beats = parse(SCRIPT.read_text(), branch=args.branch)
     cues = spoken(beats)
@@ -275,14 +411,16 @@ def main(argv: list[str] | None = None) -> int:
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    synthesise(cues, out, args.voice)
+    synthesise(cues, out, voice, args.tts, args.resume)
 
     problems = place(beats)
     total = max(b.end for b in beats)
     length = bed(cues, total, out)
     (out / "narration.srt").write_text(srt(cues))
     (out / "manifest.json").write_text(json.dumps({
-        "voice": args.voice,
+        "engine": args.tts,
+        "model": GEMINI_TTS_MODEL if args.tts == "gemini" else "kokoro",
+        "voice": voice,
         "branch": args.branch,
         "sample_rate": SAMPLE_RATE,
         "track_seconds": round(length, 2),

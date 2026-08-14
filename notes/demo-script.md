@@ -51,11 +51,15 @@ recording, because it is the one place where a blocked task costs presentation s
    was written down first. Declare it, then leave it alone.
 2. Watch the fixture rehearsal end to end: `bash demo/run_demo.sh`. It is the same beats
    with no credentials and no store account, and it costs nothing to run twice.
-3. Build the narration bed, on chonky, where the speech model lives:
+3. Build the narration bed. Gemini speaks it, three requests a minute, so twelve cues take
+   about four minutes and `--resume` keeps anything already spoken:
 
    ```bash
-   ~/ai-server/.venv/bin/python demo/narrate.py --out narration/
+   GOOGLE_API_KEY=… ./.venv/bin/python demo/narrate.py --out narration/ --resume
    ```
+
+   With the day's requests gone, `--tts kokoro` speaks it locally on the CPU instead
+   (`~/ai-server/.venv/bin/python`, which is where that model lives).
 
    It writes `narration/narration.wav`, a 3:55 bed with every line already at the
    position its heading gives it, `narration.srt` to match, and one wav per cue. Lay the

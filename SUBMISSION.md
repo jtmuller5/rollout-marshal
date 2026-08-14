@@ -16,6 +16,7 @@ action on it rather than reporting on it.
 | Demo video | Recorded to the shooting script in `notes/demo-script.md`. Link goes here at submission. |
 | Spin-up | `README.md`, four commands from `git clone`, no credentials |
 | Build write-up (bonus) | http://joemuller.com/rollout-marshal/build-log/, source in `notes/build-writeup.md` |
+| Extra Google models (bonus) | Gemma 4 31B writes the email (`rollout_marshal/scribe.py`); Gemini 2.5 Flash TTS speaks the narration (`demo/narrate.py`) |
 
 > Built by an autonomous agent working for Joe Muller. The code, the diagrams, this page
 > and this write-up were written by that agent; the accounts, the apps and the money are
@@ -105,6 +106,30 @@ The demo is a shell script, so no presenter has to remember a sequence. `bash
 demo/run_demo.sh` declares the policy, seeds a track at 20%, runs a quiet tick that ends in
 a refusal and a hold, injects the spike, runs a second tick that halts, and reads the
 decision log back.
+
+### Three Google models, each doing a job the others should not
+
+`gemini-3.5-flash` decides. Two more models are here because the decision is not the only
+thing this agent produces. Both run on the same restricted key and the same project with
+billing switched off, and each has its own free-tier quota, so a busy release day cannot
+make the narration compete with the halt.
+
+**`gemma-4-31b-it` writes the email.** The agent acts at 2am and mails afterwards, so
+that mail is the whole handover, and the first thing in it has to be a sentence rather
+than a table. The evidence block underneath is assembled from the decision document, so
+the prose can be wrong about tone and still cannot be wrong about a number. It is
+deliberately not the agent that writes it: the agent decides and the scribe explains,
+and a model summarising its own decision starts agreeing with itself. `MARSHAL_SCRIBE`
+picks it, the default is a template, and a refusal or a timeout falls back to that
+template and says in the mail which one wrote the words. An unattended agent that could
+not mail a human because a language model was busy would be a worse agent than one that
+mails plainer prose.
+
+**`gemini-2.5-flash-preview-tts` speaks the demo narration.** It answers with 24kHz PCM,
+which is the rate the bed is already laid on, so nothing is resampled. It replaced a
+non-Google local model, and it is a better fit for the same reason it is here: one
+direction in front of every line keeps twelve cues in one register. `--tts kokoro` is
+still there for a day when the requests are gone.
 
 ## Data sources
 
@@ -196,11 +221,16 @@ declaration impossible to skip and impossible to edit while a release is running
 
 ## Built with
 
-`google-adk` 2.6.3 · `google-genai` 2.18.0 · Gemini 3.5 Flash · Firestore (nam5, free tier)
-· Cloud Run · Cloud Scheduler · Secret Manager · FastAPI · uvicorn · Python 3.13 · Google
-Play Developer API v3 · Sentry release health · Shorebird · Docker
+`google-adk` 2.6.3 · `google-genai` 2.18.0 · Gemini 3.5 Flash · Gemma 4 31B ·
+Gemini 2.5 Flash TTS · Firestore (nam5, free tier) · Cloud Run · Cloud Scheduler · Secret
+Manager · FastAPI · uvicorn · Python 3.13 · Google Play Developer API v3 · Sentry release
+health · Shorebird · Docker
 
 The three required technologies are load-bearing and not added to qualify: Gemini 3.5
 reads the evidence and picks the action, ADK carries the tools and the refusal loop, and
 Firestore holds the policy and the audit trail a multi-day rollout has nowhere else to
 live.
+
+The same standard covers the two extra models. Gemma writes the only prose the agent
+sends a human, and the TTS model speaks the only prose it says out loud. Take either one
+out and something the agent produces stops being produced.

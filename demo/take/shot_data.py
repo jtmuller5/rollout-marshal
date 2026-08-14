@@ -55,7 +55,7 @@ BEATS = [
      "caption": "Every outside edge is off unless it is switched on by name."},
 ]
 
-# The four edges that can reach something real, and the module that decides each one. The
+# The edges that can reach something real, and the module that decides each one. The
 # default is not written here: it is read out of that module's own `os.environ.get`, so a
 # default that stopped being the safe one shows on camera instead of hiding in a comment.
 EDGES = [
@@ -67,6 +67,8 @@ EDGES = [
      "live": "sentry", "real": "Sentry release health"},
     {"var": "MARSHAL_STORE", "file": "rollout_marshal/store.py",
      "live": "firestore", "real": "Firestore — the policy and the audit log"},
+    {"var": "MARSHAL_SCRIBE", "file": "rollout_marshal/scribe.py",
+     "live": "gemma", "real": "Gemma 4, which writes the email"},
 ]
 
 

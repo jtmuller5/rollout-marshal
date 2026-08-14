@@ -24,6 +24,7 @@ from .crash import CrashFeed, build_crash_feed
 from .executor import Executor
 from .models import Decision, Evidence, HOLD, Proposal, iso, iso_ms, now, parse
 from .play import PlayClient, build_play_client
+from .scribe import Scribe, build_scribe
 from .store import Store, build_store, stamp_stage
 from .tools import TickContext
 
@@ -46,6 +47,7 @@ class Marshal:
         crash: CrashFeed | None = None,
         brain: Brain | None = None,
         sender: notify.Sender | None = None,
+        scribe: Scribe | None = None,
         bus: log.LogBus | None = None,
     ):
         self.store = store or build_store()
@@ -53,6 +55,7 @@ class Marshal:
         self.crash = crash or build_crash_feed()
         self.brain = brain or build_brain()
         self.sender = sender or notify.build_sender()
+        self.scribe = scribe or build_scribe()
         self.bus = bus or log.BUS
 
     # -- evidence -----------------------------------------------------------
@@ -127,7 +130,7 @@ class Marshal:
 
         mailed = None
         if decision.action_taken != HOLD:
-            subject, body = notify.compose(decision, decision_id)
+            subject, body = notify.compose(decision, decision_id, self.scribe)
             mailed = self.sender.send(subject, body)
             self.bus.publish(log.MAIL, app, f"emailed after the fact: {subject}", to=mailed)
 

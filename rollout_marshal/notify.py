@@ -8,6 +8,11 @@ already done, with the numbers it was done on and the decision id to audit it by
 demo and the tests exercise the same code path without sending anything anywhere.
 `SmtpSender` is used when the SMTP settings are present.
 
+The opening paragraph comes from `rollout_marshal.scribe` and everything below it is
+assembled here from the decision document. Splitting the mail that way is deliberate:
+the sentence a person reads first is worth having a model write, and not one number in
+it is.
+
 Written by an autonomous agent working for Joe Muller.
 """
 
@@ -21,6 +26,7 @@ from pathlib import Path
 from typing import Protocol
 
 from .models import Decision, iso, now
+from .scribe import Scribe, build_scribe
 
 
 class Sender(Protocol):
@@ -77,9 +83,15 @@ def build_sender() -> Sender:
     return FileSender(os.environ.get("MARSHAL_STATE_DIR", ".marshal-state"))
 
 
-def compose(d: Decision, decision_id: str) -> tuple[str, str]:
-    """The message. Short, because it is read on a phone at an unhelpful hour."""
+def compose(d: Decision, decision_id: str, scribe: Scribe | None = None) -> tuple[str, str]:
+    """The message. Short, because it is read on a phone at an unhelpful hour.
+
+    The opening paragraph is written by the scribe; everything under it is assembled
+    from the decision document, so the prose can be wrong about tone and still cannot
+    be wrong about a number.
+    """
     i = d.inputs
+    summary, wrote_it = (scribe or build_scribe()).summarise(d)
     verb = {"HALT": "halted", "WIDEN": "widened", "HOLD": "held"}.get(
         d.action_taken, d.action_taken.lower()
     )
@@ -88,6 +100,8 @@ def compose(d: Decision, decision_id: str) -> tuple[str, str]:
         + (f" at {i['user_fraction']:.0%}" if d.action_taken != "HOLD" else "")
     )
     lines = [
+        summary,
+        "",
         f"{i['app']} — {i['package']} / {i['track']}, version {i['version_code']}",
         "",
         f"Action taken: {d.action_taken}",
@@ -101,6 +115,8 @@ def compose(d: Decision, decision_id: str) -> tuple[str, str]:
         f"Decision: decisions/{decision_id}",
         "",
         "Sent after the action, not before. Nobody was watching.",
+        f"The first paragraph was written by {wrote_it}; every number under it was "
+        f"copied from the decision document.",
         "Rollout Marshal is an autonomous agent working for Joe Muller.",
     ]
     return subject, "\n".join(lines)
