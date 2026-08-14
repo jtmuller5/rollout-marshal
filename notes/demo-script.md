@@ -85,6 +85,11 @@ recording, because it is the one place where a blocked task costs presentation s
 5. `git status --short` clean, and the README diagram matching the code, because shot 3
    holds it on screen.
 6. `MARSHAL_PLAY=live python demo/live_alpha.py read`, to confirm `inProgress`, `0.2`.
+6b. `python demo/take/probe_model.py`, which asks the decision model one question. The
+   recorder runs it too, but running it before step 3 saves the setup write: on
+   2026-08-14 `gemini-3.5-flash` answered `503` for half an hour and the take spent a
+   real Play write on nothing. A `429` is the day's twenty requests, and only a fresh
+   day fixes that one.
 7. `ss -tln | grep -c ":8811"` returns 0, then start the service with the live wiring:
 
    ```bash

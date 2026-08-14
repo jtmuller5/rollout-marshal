@@ -87,6 +87,13 @@ trap cleanup EXIT
 
 if [ "$LIVE_PLAY" = "live" ] || [ "$LIVE_STORE" = "firestore" ]; then
   rule "live wiring — nothing is seeded, and the track is whatever it already is"
+  # One question to the model first. A take that reaches the halt with a dead model has
+  # already resumed a real release, recorded for two minutes and spent the setup write.
+  # On 2026-08-14 both ticks died on 503 UNAVAILABLE and that whole sequence was wasted.
+  if [ "${MARSHAL_BRAIN:-}" = "adk" ]; then
+    $PY demo/take/probe_model.py || {
+      echo "the decision model is not answering — not starting a take" >&2; exit 3; }
+  fi
   export MARSHAL_CRASH_FIXTURE="${MARSHAL_CRASH_FIXTURE:-$STATE/crash.json}"
   mkdir -p "$STATE"
   $PY -m rollout_marshal.cli inject --file demo/fixtures/quiet.json >/dev/null

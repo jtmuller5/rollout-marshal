@@ -250,3 +250,102 @@ def test_the_undo_never_writes_through_a_fixture_client(monkeypatch):
 
     assert calls == []
     assert page.said == []
+
+
+def test_the_undo_stops_the_track_poller_before_it_reads(monkeypatch):
+    """The poller is what killed the undo on 2026-08-14.
+
+    Every read opens a Play edit and a new edit invalidates the open ones, so the
+    four-second poll deleted the edit the undo was holding: `HTTP 400 This Edit has
+    been deleted`, and the release stayed resumed at 20%.
+    """
+    import threading
+
+    import drive_take
+
+    client = _real_client("inProgress", 0.2)
+    stop = threading.Event()
+    seen: list[bool] = []
+    inner = client.get_track
+    client.get_track = lambda p, t: (seen.append(stop.is_set()), inner(p, t))[1]
+    _wire(monkeypatch, client)
+    page = _Recorder()
+    drive_take.restore_track(page, "bakedown", stop, pause=0.0)
+
+    assert stop.is_set()
+    assert seen and seen[0] is True, "the poller was still running at the first read"
+    assert [w["status"] for w in client.writes] == ["halted"]
+
+
+def test_the_undo_retries_an_edit_that_was_deleted_under_it(monkeypatch):
+    """One failed read must not end the undo: retry, then say so if it still fails."""
+    import drive_take
+
+    client = _real_client("inProgress", 0.2)
+    inner = client.get_track
+    tries: list[int] = []
+
+    def flaky(package, track):
+        tries.append(1)
+        if len(tries) == 1:
+            raise RuntimeError("HTTP 400: This Edit has been deleted.")
+        return inner(package, track)
+
+    client.get_track = flaky
+    _wire(monkeypatch, client)
+    page = _Recorder()
+    drive_take.restore_track(page, "bakedown", pause=0.0)
+
+    assert [w["status"] for w in client.writes] == ["halted"], "the retry did not write"
+    assert any("retrying" in text for _, text in page.said)
+    assert not any(kind == "error" for kind, _ in page.said)
+
+
+def test_the_undo_gives_up_out_loud_when_every_attempt_fails(monkeypatch):
+    """A silent failure here leaves a real release rolling out."""
+    import drive_take
+
+    client = _real_client("inProgress", 0.2)
+    client.get_track = lambda p, t: (_ for _ in ()).throw(RuntimeError("HTTP 400: deleted"))
+    _wire(monkeypatch, client)
+    page = _Recorder()
+    drive_take.restore_track(page, "bakedown", pause=0.0)
+
+    assert client.writes == []
+    errors = [text for kind, text in page.said if kind == "error"]
+    assert errors and "live_alpha.py set halted 0.2" in errors[-1]
+
+
+def test_the_recorder_asks_the_model_a_question_before_any_play_write():
+    """A dead model must stop the take before it resumes a real release.
+
+    The live path spends a Play write on the setup, records for two minutes and only
+    then asks the model to halt. On 2026-08-14 both ticks answered 503 and all of that
+    was wasted, so the recorder probes first and exits rather than starting.
+    """
+    live = SCRIPT.split("live wiring", 1)[1].split("fixture wiring", 1)[0]
+    assert "probe_model.py" in live
+    assert "exit 3" in live
+
+
+def test_the_probe_reports_a_dead_model_as_a_failure(monkeypatch):
+    """Exit 3, and say which of the two failures it is."""
+    import probe_model
+
+    monkeypatch.setenv("GOOGLE_API_KEY", "not-a-real-key")
+    monkeypatch.setattr(
+        probe_model, "probe", lambda model, key, timeout=60.0: (False, "HTTP 503: busy")
+    )
+    assert probe_model.main([]) == 3
+
+    monkeypatch.setattr(
+        probe_model, "probe", lambda model, key, timeout=60.0: (True, "HTTP 200")
+    )
+    assert probe_model.main([]) == 0
+
+
+def test_the_probe_needs_a_key_and_says_so(monkeypatch):
+    import probe_model
+
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    assert probe_model.main([]) == 3

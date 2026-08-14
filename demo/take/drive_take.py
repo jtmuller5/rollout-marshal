@@ -132,48 +132,72 @@ def verdict(result: dict) -> str:
     return "the agent proposed nothing — see the ERROR line above"
 
 
-def restore_track(page: "Page", app: str) -> None:
+def restore_track(
+    page: "Page",
+    app: str,
+    stop: "threading.Event | None" = None,
+    attempts: int = 3,
+    pause: float = 5.0,
+) -> None:
     """Put a real Play track back where the take found it, when the take dies early.
 
     Shot 4 starts from a resumed release, because Play will not take a release off a
     track: somebody runs `demo/live_alpha.py set inProgress 0.2` before the camera
-    rolls. If the take then stops on a beat that did not happen — the free tier's 429
-    mid-halt is how that happens here — the release is left rolling out at 20% and only
-    a person reading the log afterwards knows it. So the driver performs its own undo.
+    rolls. If the take then stops on a beat that did not happen — a 429 or a 503 from
+    the model mid-halt is how that happens here — the release is left rolling out at
+    20% and only a person reading the log afterwards knows it. So the driver performs
+    its own undo.
 
     Two rules, and both are the reason this is safe to do without asking. It only ever
     halts, never resumes, so the worst case is a release that stops earlier than
     intended. And it does nothing at all unless the client is the real one and the
     track is still `inProgress`, so a successful take, which ends halted, is untouched.
-    """
-    try:
-        from rollout_marshal.play import RealPlayClient, build_play_client, release_body
-        from rollout_marshal.store import build_store
 
-        client = build_play_client()
-        if not isinstance(client, RealPlayClient):
+    **Stop the track poller first, and retry.** Every read opens a Play edit and every
+    new edit invalidates the ones already open, so the poller running beside this
+    function deletes the edit under it: on 2026-08-14 the undo failed with
+    `HTTP 400 This Edit has been deleted` at the one moment it was needed, and the
+    release stayed resumed. `stop` is the poller's own event, set here before the first
+    call, and the retries cover an edit already in flight when it was set.
+    """
+    if stop is not None:
+        stop.set()
+        time.sleep(pause)
+    last: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            from rollout_marshal.play import RealPlayClient, build_play_client, release_body
+            from rollout_marshal.store import build_store
+
+            client = build_play_client()
+            if not isinstance(client, RealPlayClient):
+                return
+            policy = build_store().get_policy(app)
+            before = client.get_track(policy.package, policy.track)
+            if before.status != "inProgress":
+                page.push("note", f"track is {before.status}; nothing to put back")
+                return
+            body = release_body(
+                before.release_name, before.version_codes, "halted", before.user_fraction
+            )
+            resp = client.set_release(policy.package, policy.track, body)
+            after = client.get_track(policy.package, policy.track)
+            page.push(
+                "note",
+                f"take aborted — {policy.package}/{policy.track} put back to "
+                f"{after.status} at {after.user_fraction:.0%}, Play edit {resp.get('edit_id')}",
+            )
             return
-        policy = build_store().get_policy(app)
-        before = client.get_track(policy.package, policy.track)
-        if before.status != "inProgress":
-            page.push("note", f"track is {before.status}; nothing to put back")
-            return
-        body = release_body(
-            before.release_name, before.version_codes, "halted", before.user_fraction
-        )
-        resp = client.set_release(policy.package, policy.track, body)
-        after = client.get_track(policy.package, policy.track)
-        page.push(
-            "note",
-            f"take aborted — {policy.package}/{policy.track} put back to "
-            f"{after.status} at {after.user_fraction:.0%}, Play edit {resp.get('edit_id')}",
-        )
-    except Exception as exc:  # noqa: BLE001 - say it out loud rather than hide it
-        page.push(
-            "error",
-            f"could not put the track back: {exc}. Run: MARSHAL_PLAY=live "
-            f"python demo/live_alpha.py set halted 0.2",
-        )
+        except Exception as exc:  # noqa: BLE001 - say it out loud rather than hide it
+            last = exc
+            if attempt + 1 < attempts:
+                page.push("note", f"undo attempt {attempt + 1} failed: {exc}; retrying")
+                time.sleep(pause)
+    page.push(
+        "error",
+        f"could not put the track back: {last}. Run: MARSHAL_PLAY=live "
+        f"python demo/live_alpha.py set halted 0.2",
+    )
 
 
 def expect(page: "Page", result: dict, wanted: str, beat: str) -> bool:
@@ -255,9 +279,8 @@ def take(args: argparse.Namespace, page: "Page") -> int:
     first = post_tick(args.port, app)
     page.push("note", f"tick returned {first.get('action_taken')} — {verdict(first)}")
     if not expect(page, first, "HOLD", "4a"):
-        restore_track(page, app)
+        restore_track(page, app, stop)
         time.sleep(3.0)
-        stop.set()
         return 3
     time.sleep(args.dwell)
 
@@ -285,9 +308,8 @@ def take(args: argparse.Namespace, page: "Page") -> int:
                       f"— {verdict(second)}")
     api = second.get("inputs", {})
     if not expect(page, second, "HALT", "4c"):
-        restore_track(page, app)
+        restore_track(page, app, stop)
         time.sleep(3.0)
-        stop.set()
         return 3
     page.push("note", f"decision {second['decision_id']}")
     time.sleep(args.dwell)
